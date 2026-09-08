@@ -134,5 +134,36 @@
   "dailyPlannerComingSoon": {
     "title": "قادم قريبًا",
     "description": "المخطط اليومي قيد التطوير حاليًا."
+  },
+  "dailyTask": {
+    "addTitle": "إضافة مهمة",
+    "addTask": "إضافة المهمة",
+    "taskName": "اسم المهمة",
+    "taskNamePlaceholder": "مثال: مذاكرة الاختبار",
+    "date": "التاريخ",
+    "startTime": "وقت البداية",
+    "endTime": "وقت النهاية",
+    "notes": "ملاحظات",
+    "notesPlaceholder": "ملاحظات إضافية...",
+    "reminder": "التذكير",
+    "reminders": {
+      "none": "بدون تذكير",
+      "atTime": "وقت المهمة",
+      "tenMinutes": "قبل 10 دقائق",
+      "fifteenMinutes": "قبل 15 دقيقة",
+      "thirtyMinutes": "قبل 30 دقيقة",
+      "oneHour": "قبل ساعة"
+    },
+    "errors": {
+      "titleRequired": "يرجى إدخال اسم المهمة.",
+      "startTimeRequired": "يرجى تحديد وقت البداية أولاً.",
+      "invalidEndTime": "يجب أن يكون وقت النهاية بعد وقت البداية."
+    },
+    "selectTime": "اختر الوقت"
+  },
+
+  "timeWheel": {
+    "confirm": "تأكيد",
+    "clear": "بدون وقت"
   }
 }

@@ -1,0 +1,424 @@
+.daily-planner {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+.daily-planner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.daily-planner-header h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 24px;
+}
+
+.daily-week-navigation {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.daily-week-arrow {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+
+  cursor: pointer;
+}
+
+.daily-week-arrow:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.daily-week-days {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.daily-day {
+  display: flex;
+  min-width: 0;
+  min-height: 72px;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+
+  color: var(--text-secondary);
+  background-color: var(--bg-secondary);
+
+  cursor: pointer;
+}
+
+.daily-day:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.daily-day.selected {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+}
+
+.daily-day.today .daily-day-number {
+  color: var(--accent);
+}
+
+.daily-day.selected .daily-day-number {
+  color: var(--accent);
+}
+
+.daily-day-name {
+  overflow: hidden;
+  max-width: 100%;
+
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-day-number {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.daily-selected-date h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 20px;
+}
+
+.daily-planner-placeholder {
+  display: flex;
+  min-height: 250px;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px dashed var(--border-color);
+  border-radius: 14px;
+
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.daily-day-name-mobile {
+  display: none;
+}
+
+.daily-calendar-button {
+  display: flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+
+  cursor: pointer;
+}
+
+.daily-calendar-button:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.daily-calendar-wrapper {
+  position: relative;
+}
+
+.daily-content {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.daily-tasks-section,
+.daily-timeline-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.daily-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.daily-section-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 18px;
+}
+
+.daily-section-header > span {
+  display: flex;
+  min-width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 999px;
+
+  color: var(--accent);
+  background-color: var(--bg-tertiary);
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.daily-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.daily-task-item {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  gap: 12px;
+  align-items: center;
+
+  padding: 12px 16px;
+
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+
+  text-align: start;
+  cursor: pointer;
+}
+
+.daily-task-item:hover {
+  border-color: var(--accent);
+}
+
+.daily-task-check {
+  display: flex;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+
+  color: var(--accent);
+}
+
+.daily-task-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.daily-task-item.completed .daily-task-title,
+.daily-timeline-item.completed strong {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+}
+
+.daily-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.daily-timeline-item {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.daily-timeline-time {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  justify-content: flex-end;
+
+  padding-top: 16px;
+
+  color: var(--text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.daily-timeline-card {
+  display: flex;
+  min-height: 70px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  padding: 14px 16px;
+
+  border: 1px solid var(--border-color);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: 12px;
+
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+
+  text-align: start;
+  cursor: pointer;
+}
+
+.daily-timeline-card:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.daily-timeline-card-content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.daily-timeline-card-content strong {
+  overflow: hidden;
+
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-timeline-card-content span {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.daily-selected-date {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.daily-add-task-button {
+  display: flex;
+  min-height: 42px;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 14px;
+
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+
+  color: white;
+  background-color: var(--accent);
+
+  font-weight: 600;
+  cursor: pointer;
+}
+@media (max-width: 700px) {
+  .daily-planner {
+    gap: 18px;
+  }
+
+  .daily-planner-header h2 {
+    font-size: 20px;
+  }
+
+  .daily-week-navigation {
+    gap: 4px;
+  }
+
+  .daily-week-arrow {
+    width: 34px;
+    height: 44px;
+  }
+
+  .daily-week-days {
+    gap: 3px;
+  }
+
+  .daily-day {
+    min-height: 62px;
+    padding: 4px 1px;
+  }
+
+  .daily-day-name {
+    font-size: 11px;
+  }
+
+  .daily-day-number {
+    font-size: 15px;
+  }
+
+  .daily-selected-date h3 {
+    font-size: 18px;
+  }
+
+  .daily-day-name-desktop {
+    display: none;
+  }
+
+  .daily-day-name-mobile {
+    display: block;
+  }
+
+  .daily-content {
+    gap: 26px;
+  }
+
+  .daily-timeline-item {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .daily-timeline-time {
+    padding-top: 14px;
+    font-size: 11px;
+  }
+
+  .daily-timeline-time svg {
+    display: none;
+  }
+
+  .daily-timeline-card {
+    min-height: 64px;
+    padding: 12px;
+  }
+
+  .daily-task-item {
+    min-height: 50px;
+    padding: 11px 12px;
+  }
+  .daily-selected-date {
+    align-items: flex-start;
+  }
+
+  .daily-add-task-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .daily-add-task-button span {
+    display: none;
+  }
+}

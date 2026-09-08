@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import "./SchedulePage.css";
 import StudySchedule from "../../components/schedule/StudySchedule";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import DailyPlanner from "../../components/daily/DailyPlanner";
 
 type ScheduleTab = "study" | "daily";
 
@@ -32,14 +33,7 @@ function SchedulePage() {
       </div>
 
       <div className="schedule-content">
-        {activeTab === "study" ? (
-          <StudySchedule />
-        ) : (
-          <div className="daily-planner-coming-soon">
-            <h2>{t("dailyPlannerComingSoon.title")}</h2>
-            <p>{t("dailyPlannerComingSoon.description")}</p>
-          </div>
-        )}
+        {activeTab === "study" ? <StudySchedule /> : <DailyPlanner />}
       </div>
     </div>
   );

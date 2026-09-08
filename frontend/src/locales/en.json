@@ -134,5 +134,36 @@
   "dailyPlannerComingSoon": {
     "title": "Coming Soon",
     "description": "The Daily Planner is currently under development."
+  },
+  "dailyTask": {
+    "addTitle": "Add Task",
+    "addTask": "Add Task",
+    "taskName": "Task Name",
+    "taskNamePlaceholder": "Example: Study for the exam",
+    "date": "Date",
+    "startTime": "Start Time",
+    "endTime": "End Time",
+    "notes": "Notes",
+    "notesPlaceholder": "Additional notes...",
+    "reminder": "Reminder",
+    "reminders": {
+      "none": "No reminder",
+      "atTime": "At task time",
+      "tenMinutes": "10 minutes before",
+      "fifteenMinutes": "15 minutes before",
+      "thirtyMinutes": "30 minutes before",
+      "oneHour": "1 hour before"
+    },
+    "errors": {
+      "titleRequired": "Please enter a task name.",
+      "startTimeRequired": "Please select a start time first.",
+      "invalidEndTime": "End time must be after start time."
+    },
+    "selectTime": "Select time"
+  },
+
+  "timeWheel": {
+    "confirm": "Confirm",
+    "clear": "No time"
   }
 }
