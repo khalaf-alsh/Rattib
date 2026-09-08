@@ -108,18 +108,6 @@
   font-size: 20px;
 }
 
-.daily-planner-placeholder {
-  display: flex;
-  min-height: 250px;
-  align-items: center;
-  justify-content: center;
-
-  border: 1px dashed var(--border-color);
-  border-radius: 14px;
-
-  color: var(--text-secondary);
-  text-align: center;
-}
 
 .daily-day-name-mobile {
   display: none;
@@ -421,4 +409,53 @@
   .daily-add-task-button span {
     display: none;
   }
+}
+
+.daily-planner { flex: 1; min-width: 0; min-height: 0; }
+.daily-planner > :not(.daily-content) { flex-shrink: 0; }
+.daily-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
+}
+.daily-content > * { flex-shrink: 0; }
+.daily-empty { padding: 28px 16px; text-align: center; color: var(--text-secondary); border: 1px dashed var(--border-color); border-radius: 14px; }
+.daily-empty h3 { color: var(--text-primary); margin: 12px 0 8px; }
+.daily-empty p { margin: 0; }
+.daily-task-item, .daily-timeline-card { padding: 4px 8px; gap: 4px; cursor: default; }
+.daily-task-check { width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; cursor: pointer; }
+.daily-task-edit { display: flex; align-items: center; justify-content: space-between; gap: 8px; align-self: stretch; flex: 1; min-width: 0; min-height: 44px; padding: 10px 8px; border: 0; border-radius: 8px; background: transparent; color: inherit; text-align: start; font: inherit; cursor: pointer; }
+.daily-task-edit > svg { flex-shrink: 0; color: var(--text-secondary); }
+.daily-task-title { overflow-wrap: anywhere; }
+.daily-task-edit:hover, .daily-task-check:hover { background: var(--bg-tertiary); }
+.daily-course-card { padding: 14px 16px; background: var(--bg-tertiary); border-inline-start-style: double; }
+.daily-course-label { display: flex; align-items: center; gap: 6px; }
+.daily-timeline-card-content span { overflow-wrap: anywhere; }
+.daily-calendar-button { width: 44px; height: 44px; }
+@media (max-width: 700px) {
+  .daily-week-navigation { display: grid; grid-template-columns: 44px 1fr 44px; }
+  .daily-week-days { grid-column: 1 / -1; grid-row: 2; }
+  .daily-week-arrow { width: 44px; height: 44px; }
+  .daily-week-arrow:last-child { grid-column: 3; }
+  .daily-timeline-item { grid-template-columns: 1fr; gap: 4px; }
+  .daily-timeline-time { justify-content: flex-start; padding-top: 8px; }
+}
+
+.daily-task-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 4px;
+  margin-inline-start: auto;
+}
+.daily-task-actions > button {
+  flex: 0 0 44px;
+  width: 44px;
+  min-height: 44px;
+}
+.daily-task-action-edit {
+  justify-content: center;
+  padding: 0;
 }

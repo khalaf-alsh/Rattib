@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import TimePicker from "../ui/TimePicker";
+import TimeWheelPicker from "../ui/TimeWheelPicker";
 import type { Course, Day, Meeting, NewCourse } from "../../types/schedule";
 import "./CourseModal.css";
 
@@ -112,6 +112,7 @@ function CourseModal({
 
   const [endPeriod, setEndPeriod] = useState<"am" | "pm">(initialEnd.period);
 
+  const [activeTimePicker, setActiveTimePicker] = useState<"start" | "end" | null>(null);
   const [doctor, setDoctor] = useState(initialCourse?.doctor ?? "");
 
   const [section, setSection] = useState(initialCourse?.section ?? "");
@@ -452,31 +453,9 @@ function CourseModal({
               {t("startTime")} <span className="required">*</span>
             </label>
 
-            <TimePicker
-              value={startTime}
-              period={startPeriod}
-              onTimeChange={(value) => {
-                setStartTime(value);
-
-                setErrors((currentErrors) => ({
-                  ...currentErrors,
-                  startTime: undefined,
-                }));
-
-                setConflicts([]);
-              }}
-              onPeriodChange={(value) => {
-                setStartPeriod(value);
-
-                setErrors((currentErrors) => ({
-                  ...currentErrors,
-                  startTime: undefined,
-                  endTime: undefined,
-                }));
-
-                setConflicts([]);
-              }}
-            />
+            <button type="button" className="course-time-button" aria-label={t("startTime")} aria-invalid={!!errors.startTime} onClick={() => setActiveTimePicker("start")}>
+              {startTime ? formatTime(convertTo24Hour(startTime, startPeriod)) : t("dailyTask.selectTime")}
+            </button>
 
             {errors.startTime && (
               <span className="form-error">{errors.startTime}</span>
@@ -488,30 +467,9 @@ function CourseModal({
               {t("endTime")} <span className="required">*</span>
             </label>
 
-            <TimePicker
-              value={endTime}
-              period={endPeriod}
-              onTimeChange={(value) => {
-                setEndTime(value);
-
-                setErrors((currentErrors) => ({
-                  ...currentErrors,
-                  endTime: undefined,
-                }));
-
-                setConflicts([]);
-              }}
-              onPeriodChange={(value) => {
-                setEndPeriod(value);
-
-                setErrors((currentErrors) => ({
-                  ...currentErrors,
-                  endTime: undefined,
-                }));
-
-                setConflicts([]);
-              }}
-            />
+            <button type="button" className="course-time-button" aria-label={t("endTime")} aria-invalid={!!errors.endTime} onClick={() => setActiveTimePicker("end")}>
+              {endTime ? formatTime(convertTo24Hour(endTime, endPeriod)) : t("dailyTask.selectTime")}
+            </button>
 
             {errors.endTime && (
               <span className="form-error">{errors.endTime}</span>
@@ -626,6 +584,18 @@ function CourseModal({
             )}
           </div>
         </form>
+        {activeTimePicker && <TimeWheelPicker
+          title={t(activeTimePicker === "start" ? "startTime" : "endTime")}
+          value={activeTimePicker === "start" ? (startTime ? convertTo24Hour(startTime, startPeriod) : undefined) : (endTime ? convertTo24Hour(endTime, endPeriod) : undefined)}
+          onClose={() => setActiveTimePicker(null)}
+          onConfirm={(value) => {
+            const converted = convertFrom24Hour(value);
+            if (activeTimePicker === "start") { setStartTime(converted.time); setStartPeriod(converted.period); }
+            else { setEndTime(converted.time); setEndPeriod(converted.period); }
+            setErrors((current) => ({ ...current, startTime: undefined, endTime: undefined }));
+            setConflicts([]); setActiveTimePicker(null);
+          }}
+        />}
       </div>
     </div>
   );

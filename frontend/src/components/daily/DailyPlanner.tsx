@@ -7,9 +7,12 @@ import {
   Circle,
   Clock,
   Plus,
+  BookOpen,
+  Pencil,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { DailyTask } from "../../types/dailyPlanner";
+import type { Course, Day, Meeting } from "../../types/schedule";
 import CalendarPicker from "./CalendarPicker";
 import "./DailyPlanner.css";
 import TaskModal from "./TaskModal";
@@ -47,26 +50,30 @@ function formatDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function DailyPlanner() {
-  const { i18n } = useTranslation();
+type TimelineEntry =
+  | { kind: "task"; startTime: string; task: DailyTask }
+  | { kind: "course"; startTime: string; course: Course; meeting: Meeting };
+const days: Day[] = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+function DailyPlanner({ courses }: { courses: Course[] }) {
+  const { t, i18n } = useTranslation();
 
   const isArabic = i18n.language === "ar";
   const locale = isArabic ? "ar-SA" : "en-US";
 
   const today = useMemo(() => new Date(), []);
-  const todayKey = formatDateKey(today);
   const [selectedDate, setSelectedDate] = useState(today);
   const [weekStart, setWeekStart] = useState(() => getStartOfWeek(today));
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
-  const handleAddTask = (newTask: Omit<DailyTask, "id" | "completed">) => {
+  const [editingTask, setEditingTask] = useState<DailyTask | null>(null);
+  const handleSaveTask = (newTask: Omit<DailyTask, "id" | "completed">) => {
     const task: DailyTask = {
       ...newTask,
-      id: Date.now(),
-      completed: false,
+      id: editingTask?.id ?? Math.max(0, ...tasks.map((task) => task.id)) + 1,
+      completed: editingTask?.completed ?? false,
     };
 
-    setTasks((currentTasks) => [...currentTasks, task]);
+    setTasks((currentTasks) => editingTask ? currentTasks.map((current) => current.id === editingTask.id ? task : current) : [...currentTasks, task]);
 
     setTaskModalOpen(false);
 
@@ -83,11 +90,13 @@ function DailyPlanner() {
   );
 
   const monthTitle = selectedDate.toLocaleDateString(locale, {
+    calendar: "gregory",
     month: "long",
     year: "numeric",
   });
 
   const selectedDateTitle = selectedDate.toLocaleDateString(locale, {
+    calendar: "gregory",
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -109,43 +118,7 @@ function DailyPlanner() {
     setCalendarOpen(false);
   };
 
-  const [tasks, setTasks] = useState<DailyTask[]>([
-    {
-      id: 1,
-      title: isArabic ? "شراء كتاب" : "Buy a book",
-      date: todayKey,
-      completed: false,
-    },
-    {
-      id: 2,
-      title: isArabic ? "إرسال التقرير" : "Submit the report",
-      date: todayKey,
-      completed: true,
-    },
-    {
-      id: 3,
-      title: isArabic ? "مذاكرة الاختبار" : "Study for the exam",
-      date: todayKey,
-      startTime: "09:00",
-      endTime: "11:00",
-      completed: false,
-    },
-    {
-      id: 4,
-      title: isArabic ? "موعد الطبيب" : "Doctor appointment",
-      date: todayKey,
-      startTime: "13:30",
-      completed: false,
-    },
-    {
-      id: 5,
-      title: isArabic ? "النادي" : "Gym",
-      date: todayKey,
-      startTime: "18:00",
-      endTime: "19:30",
-      completed: false,
-    },
-  ]);
+  const [tasks, setTasks] = useState<DailyTask[]>([]);
 
   const toggleTask = (taskId: number) => {
     setTasks((currentTasks) =>
@@ -169,6 +142,32 @@ function DailyPlanner() {
       firstTask.startTime!.localeCompare(secondTask.startTime!),
     );
 
+  const timeline: TimelineEntry[] = [
+    ...timedTasks.map((task): TimelineEntry => ({ kind: "task", startTime: task.startTime!, task })),
+    ...courses.flatMap((course) => course.meetings.filter((meeting) => meeting.day === days[selectedDate.getDay()])
+      .map((meeting): TimelineEntry => ({ kind: "course", startTime: meeting.startTime, course, meeting }))),
+  ].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const openTask = (task: DailyTask) => { setEditingTask(task); setTaskModalOpen(true); };
+  const completionButton = (task: DailyTask) => (
+    <button type="button" className="daily-task-check" role="checkbox" aria-checked={task.completed}
+      aria-label={t(task.completed ? "planner.uncomplete" : "planner.complete", { title: task.title })}
+      onClick={() => toggleTask(task.id)}>
+      {task.completed ? <Check size={18} /> : <Circle size={18} />}
+    </button>
+  );
+  const taskActions = (task: DailyTask) => (
+    <div className="daily-task-actions">
+      {completionButton(task)}
+      <button
+        type="button"
+        className="daily-task-edit daily-task-action-edit"
+        onClick={() => openTask(task)}
+        aria-label={t("planner.edit", { title: task.title })}
+      >
+        <Pencil size={16} aria-hidden="true" />
+      </button>
+    </div>
+  );
   const formatTime = (time: string) => {
     const [hourValue, minute] = time.split(":").map(Number);
 
@@ -189,7 +188,7 @@ function DailyPlanner() {
             type="button"
             className="daily-calendar-button"
             onClick={() => setCalendarOpen((current) => !current)}
-            aria-label="Choose date"
+            aria-label={t("planner.chooseDate")}
           >
             <CalendarDays size={20} />
           </button>
@@ -208,7 +207,7 @@ function DailyPlanner() {
           type="button"
           className="daily-week-arrow"
           onClick={handlePreviousWeek}
-          aria-label="Previous week"
+          aria-label={t("planner.previousWeek")}
         >
           {isArabic ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
@@ -229,12 +228,14 @@ function DailyPlanner() {
               >
                 <span className="daily-day-name daily-day-name-desktop">
                   {date.toLocaleDateString(locale, {
+                    calendar: "gregory",
                     weekday: "short",
                   })}
                 </span>
 
                 <span className="daily-day-name daily-day-name-mobile">
                   {date.toLocaleDateString(locale, {
+                    calendar: "gregory",
                     weekday: isArabic ? "narrow" : "short",
                   })}
                 </span>
@@ -249,7 +250,7 @@ function DailyPlanner() {
           type="button"
           className="daily-week-arrow"
           onClick={handleNextWeek}
-          aria-label="Next week"
+          aria-label={t("planner.nextWeek")}
         >
           {isArabic ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
         </button>
@@ -261,97 +262,63 @@ function DailyPlanner() {
         <button
           type="button"
           className="daily-add-task-button"
-          onClick={() => setTaskModalOpen(true)}
+          aria-label={t("dailyTask.addTask")}
+          onClick={() => { setEditingTask(null); setTaskModalOpen(true); }}
         >
           <Plus size={18} />
-          <span>{isArabic ? "إضافة مهمة" : "Add Task"}</span>
+          <span>{t("dailyTask.addTask")}</span>
         </button>
       </div>
 
       <div className="daily-content">
-        <section className="daily-tasks-section">
-          <div className="daily-section-header">
-            <h3>{isArabic ? "مهام اليوم" : "Today's Tasks"}</h3>
-
-            <span>
-              {tasksWithoutTime.filter((task) => !task.completed).length}
-            </span>
-          </div>
-
-          <div className="daily-task-list">
-            {tasksWithoutTime.map((task) => (
-              <button
-                key={task.id}
-                type="button"
-                className={`daily-task-item ${
-                  task.completed ? "completed" : ""
-                }`}
-                onClick={() => toggleTask(task.id)}
-              >
-                <span className="daily-task-check">
-                  {task.completed ? <Check size={16} /> : <Circle size={18} />}
-                </span>
-
+        {selectedDateTasks.length === 0 && timeline.length === 0 && <div className="daily-empty" role="status">
+          <CalendarDays size={28} /><h3>{t("planner.emptyTitle")}</h3><p>{t("planner.emptyDescription")}</p>
+        </div>}
+        {tasksWithoutTime.length > 0 && <section className="daily-tasks-section">
+          <div className="daily-section-header"><h3>{t("planner.tasks")}</h3><span>{tasksWithoutTime.filter((task) => !task.completed).length}</span></div>
+          <div className="daily-task-list">{tasksWithoutTime.map((task) => (
+            <div key={task.id} className={`daily-task-item ${task.completed ? "completed" : ""}`}>
+              <button type="button" className="daily-task-edit" onClick={() => openTask(task)} aria-label={t("planner.edit", { title: task.title })}>
                 <span className="daily-task-title">{task.title}</span>
               </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="daily-timeline-section">
-          <div className="daily-section-header">
-            <h3>{isArabic ? "جدول اليوم" : "Today's Schedule"}</h3>
-          </div>
-
-          <div className="daily-timeline">
-            {timedTasks.map((task) => (
-              <div
-                key={task.id}
-                className={`daily-timeline-item ${
-                  task.completed ? "completed" : ""
-                }`}
-              >
-                <div className="daily-timeline-time">
-                  <Clock size={15} />
-
-                  <span>{formatTime(task.startTime!)}</span>
-                </div>
-
-                <button
-                  type="button"
-                  className="daily-timeline-card"
-                  onClick={() => toggleTask(task.id)}
-                >
-                  <div className="daily-timeline-card-content">
-                    <strong>{task.title}</strong>
-
-                    {task.endTime && (
-                      <span>
-                        {formatTime(task.startTime!)}
-                        {" – "}
-                        {formatTime(task.endTime)}
-                      </span>
-                    )}
-                  </div>
-
-                  <span className="daily-task-check">
-                    {task.completed ? (
-                      <Check size={16} />
-                    ) : (
-                      <Circle size={18} />
-                    )}
+              {taskActions(task)}
+            </div>
+          ))}</div>
+        </section>}
+        {timeline.length > 0 && <section className="daily-timeline-section">
+          <div className="daily-section-header"><h3>{t("planner.schedule")}</h3></div>
+          <div className="daily-timeline">{timeline.map((entry) => entry.kind === "task" ? (
+            <div key={`task-${entry.task.id}`} className={`daily-timeline-item ${entry.task.completed ? "completed" : ""}`}>
+              <div className="daily-timeline-time"><Clock size={15} /><span>{formatTime(entry.startTime)}</span></div>
+              <div className="daily-timeline-card">
+                <button type="button" className="daily-task-edit" onClick={() => openTask(entry.task)} aria-label={t("planner.edit", { title: entry.task.title })}>
+                  <span className="daily-timeline-card-content"><strong>{entry.task.title}</strong>
+                    {entry.task.endTime && <span>{formatTime(entry.startTime)} – {formatTime(entry.task.endTime)}</span>}
                   </span>
                 </button>
+                {taskActions(entry.task)}
               </div>
-            ))}
-          </div>
-        </section>
+            </div>
+          ) : (
+            <div key={`course-${entry.course.id}-${entry.meeting.day}-${entry.startTime}`} className="daily-timeline-item">
+              <div className="daily-timeline-time"><Clock size={15} /><span>{formatTime(entry.startTime)}</span></div>
+              <div className="daily-timeline-card daily-course-card"><div className="daily-timeline-card-content">
+                <span className="daily-course-label"><BookOpen size={15} />{t("planner.lecture")}</span>
+                <strong>{entry.course.name}</strong><span>{formatTime(entry.startTime)} – {formatTime(entry.meeting.endTime)}</span>
+                {entry.course.room && <span>{t("room")}: {entry.course.room}</span>}
+                {entry.course.doctor && <span>{t("doctor")}: {entry.course.doctor}</span>}
+              </div></div>
+            </div>
+          ))}</div>
+        </section>}
       </div>
       {taskModalOpen && (
         <TaskModal
+          task={editingTask ?? undefined}
+          onDelete={() => { setTasks((current) => current.filter((task) => task.id !== editingTask?.id)); setTaskModalOpen(false); }}
           selectedDate={selectedDate}
           onClose={() => setTaskModalOpen(false)}
-          onSave={handleAddTask}
+          onSave={handleSaveTask}
         />
       )}
     </div>

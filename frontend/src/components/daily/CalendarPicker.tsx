@@ -17,7 +17,7 @@ function isSameDay(firstDate: Date, secondDate: Date) {
 }
 
 function CalendarPicker({ selectedDate, onSelect }: CalendarPickerProps) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const isArabic = i18n.language === "ar";
   const locale = isArabic ? "ar-SA" : "en-US";
@@ -33,6 +33,7 @@ function CalendarPicker({ selectedDate, onSelect }: CalendarPickerProps) {
     : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const monthTitle = visibleMonth.toLocaleDateString(locale, {
+    calendar: "gregory",
     month: "long",
     year: "numeric",
   });
@@ -86,7 +87,7 @@ function CalendarPicker({ selectedDate, onSelect }: CalendarPickerProps) {
           type="button"
           className="calendar-picker-arrow"
           onClick={handlePreviousMonth}
-          aria-label="Previous month"
+          aria-label={t("planner.previousMonth")}
         >
           {isArabic ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
@@ -97,7 +98,7 @@ function CalendarPicker({ selectedDate, onSelect }: CalendarPickerProps) {
           type="button"
           className="calendar-picker-arrow"
           onClick={handleNextMonth}
-          aria-label="Next month"
+          aria-label={t("planner.nextMonth")}
         >
           {isArabic ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
         </button>
@@ -141,7 +142,7 @@ function CalendarPicker({ selectedDate, onSelect }: CalendarPickerProps) {
         className="calendar-picker-today"
         onClick={handleToday}
       >
-        {isArabic ? "اليوم" : "Today"}
+        {t("planner.today")}
       </button>
     </div>
   );

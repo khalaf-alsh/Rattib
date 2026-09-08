@@ -1,16 +1,16 @@
-import { Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import Toast from "../ui/Toast";
 import { useTranslation } from "react-i18next";
 import CourseCard from "./CourseCard";
 import CourseModal from "./CourseModal";
 import EditScopeModal from "./EditScopeModal";
+import DeleteScheduleModal from "./DeleteScheduleModal";
 import DeleteScopeModal from "./DeleteScopeModal";
 import {
   createCourse,
   deleteCourse,
   deleteCourseMeeting,
-  getCourses,
   updateCourse,
   updateCourseMeeting,
 } from "../../services/courseService";
@@ -49,7 +49,8 @@ type EditChoiceState = {
   meeting: Meeting;
 } | null;
 
-function StudySchedule() {
+type StudyScheduleProps = { courses: Course[]; setCourses: Dispatch<SetStateAction<Course[]>>; coursesReady: boolean };
+function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps) {
   const { t, i18n } = useTranslation();
 
   const [selectedDay, setSelectedDay] = useState<Day>(() => {
@@ -81,6 +82,33 @@ function StudySchedule() {
   const [editChoice, setEditChoice] = useState<EditChoiceState>(null);
 
   const [deleteChoice, setDeleteChoice] = useState<EditChoiceState>(null);
+
+  const [deleteScheduleOpen, setDeleteScheduleOpen] = useState(false);
+  const [deletingSchedule, setDeletingSchedule] = useState(false);
+  const [deleteScheduleError, setDeleteScheduleError] = useState(false);
+  const deletingScheduleRef = useRef(false);
+
+  const handleDeleteSchedule = async () => {
+    if (deletingScheduleRef.current || !coursesReady || courses.length === 0) return;
+    deletingScheduleRef.current = true;
+    setDeletingSchedule(true);
+    setDeleteScheduleError(false);
+    try {
+      // Remove only confirmed deletions from the shared state.
+      for (const course of courses) {
+        await deleteCourse(course.id);
+        setCourses((current) => current.filter((item) => item.id !== course.id));
+      }
+      setDeleteScheduleOpen(false);
+      setToastMessage(t("deleteSchedule.success"));
+    } catch {
+      // Keep failed and unattempted courses available for a retry.
+      setDeleteScheduleError(true);
+    } finally {
+      deletingScheduleRef.current = false;
+      setDeletingSchedule(false);
+    }
+  };
 
   const handleDeleteCourse = async (courseId: number) => {
     try {
@@ -127,24 +155,6 @@ function StudySchedule() {
       console.error("Failed to delete meeting:", error);
     }
   };
-
-  const [courses, setCourses] = useState<Course[]>([]);
-
-  useEffect(() => {
-    const loadCourses = async () => {
-      try {
-        const savedCourses = await getCourses();
-
-        console.log("Courses from backend:", savedCourses);
-
-        setCourses(savedCourses);
-      } catch (error) {
-        console.error("Failed to load courses:", error);
-      }
-    };
-
-    loadCourses();
-  }, []);
 
   const getCoursesForDay = (day: Day) => {
     return courses
@@ -326,7 +336,7 @@ function StudySchedule() {
         </button>
       </div>
 
-      {scheduleView === "day" ? (
+      {!coursesReady ? null : scheduleView === "day" ? (
         <>
           <div className="week-days">
             {days.map((day) => (
@@ -438,9 +448,9 @@ function StudySchedule() {
         </div>
       )}
 
-      <div className="schedule-actions">
+      <div className="schedule-actions schedule-actions-with-delete">
         <button
-          className="add-course-button"
+          className="add-course-button" disabled={!coursesReady}
           type="button"
           onClick={() =>
             setCourseModalState({
@@ -452,7 +462,30 @@ function StudySchedule() {
 
           <span>{t("addCourseForDay")}</span>
         </button>
+        <button
+          type="button"
+          className="delete-entire-schedule-button"
+          disabled={!coursesReady || courses.length === 0 || deletingSchedule}
+          onClick={() => {
+            setDeleteScheduleError(false);
+            setDeleteScheduleOpen(true);
+          }}
+        >
+          <Trash2 size={18} />
+          {t("deleteSchedule.title")}
+        </button>
       </div>
+
+      {deleteScheduleOpen && (
+        <DeleteScheduleModal
+          deleting={deletingSchedule}
+          error={deleteScheduleError}
+          onConfirm={handleDeleteSchedule}
+          onClose={() => {
+            if (!deletingScheduleRef.current) setDeleteScheduleOpen(false);
+          }}
+        />
+      )}
 
       {editChoice && (
         <EditScopeModal

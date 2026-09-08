@@ -261,9 +261,10 @@ function TimeWheelPicker({
   };
 
   return (
-    <div className="time-wheel-overlay" onClick={onClose}>
+    <div className="time-wheel-overlay" onMouseDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onClose(); }}>
       <div
-        className="time-wheel-picker"
+        onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }}
+        className="time-wheel-picker" role="dialog" aria-modal="true" aria-label={title}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="time-wheel-header">
@@ -282,9 +283,9 @@ function TimeWheelPicker({
         {isArabic ? (
           <>
             <div className="time-wheel-labels" dir="ltr">
-              <span>الفترة</span>
-              <span>الساعة</span>
-              <span>الدقيقة</span>
+              <span>{t("timeWheel.period")}</span>
+              <span>{t("timeWheel.hour")}</span>
+              <span>{t("timeWheel.minute")}</span>
             </div>
 
             <div className="time-wheel-body" dir="ltr">
@@ -294,7 +295,7 @@ function TimeWheelPicker({
                 values={periodValues}
                 selectedValue={period}
                 onChange={(newPeriod) => setPeriod(newPeriod as Period)}
-                ariaLabel="Period"
+                ariaLabel={t("timeWheel.period")}
                 renderValue={getPeriodLabel}
               />
 
@@ -302,23 +303,23 @@ function TimeWheelPicker({
                 values={hours}
                 selectedValue={hour}
                 onChange={setHour}
-                ariaLabel="Hour"
+                ariaLabel={t("timeWheel.hour")}
               />
 
               <WheelColumn
                 values={minutes}
                 selectedValue={minute}
                 onChange={setMinute}
-                ariaLabel="Minute"
+                ariaLabel={t("timeWheel.minute")}
               />
             </div>
           </>
         ) : (
           <>
             <div className="time-wheel-labels" dir="ltr">
-              <span>Hour</span>
-              <span>Minute</span>
-              <span>Period</span>
+              <span>{t("timeWheel.hour")}</span>
+              <span>{t("timeWheel.minute")}</span>
+              <span>{t("timeWheel.period")}</span>
             </div>
 
             <div className="time-wheel-body" dir="ltr">
@@ -328,21 +329,21 @@ function TimeWheelPicker({
                 values={hours}
                 selectedValue={hour}
                 onChange={setHour}
-                ariaLabel="Hour"
+                ariaLabel={t("timeWheel.hour")}
               />
 
               <WheelColumn
                 values={minutes}
                 selectedValue={minute}
                 onChange={setMinute}
-                ariaLabel="Minute"
+                ariaLabel={t("timeWheel.minute")}
               />
 
               <WheelColumn
                 values={periodValues}
                 selectedValue={period}
                 onChange={(newPeriod) => setPeriod(newPeriod as Period)}
-                ariaLabel="Period"
+                ariaLabel={t("timeWheel.period")}
                 renderValue={getPeriodLabel}
               />
             </div>

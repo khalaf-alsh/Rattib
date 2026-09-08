@@ -1,14 +1,14 @@
-import { LockKeyhole, LogOut, Mail, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, LockKeyhole, LogOut, Mail, UserRound } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Toast from "../../components/ui/Toast";
 import "./AccountPage.css";
 import { usePageTitle } from "../../hooks/usePageTitle";
 
 function AccountPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
   const { user, updateEmail, updatePassword, signOut } = useAuth();
@@ -116,6 +116,7 @@ function AccountPage() {
 
   return (
     <div className="account-page">
+      <Link className="account-back-link" to="/schedule">{i18n.dir() === "rtl" ? <ArrowRight size={20} /> : <ArrowLeft size={20} />}{t("backToSchedule")}</Link>
       <section className="profile-header">
         <div className="profile-avatar">
           <UserRound size={38} />

@@ -5,7 +5,6 @@
   "dailyPlanner": "Daily Planner",
   "account": "Account",
   "addCourse": "Add Course",
-
   "days": {
     "sunday": "Sunday",
     "monday": "Monday",
@@ -128,12 +127,8 @@
   },
   "registerVerification": {
     "title": "Check your email",
-    "message": "Your account has been created. We sent a confirmation link to {{email}}. Verify your email, then return to sign in.",
+    "message": "Check your email to complete your registration. If you don't receive a message, verify the email address or try signing in if you already have an account.",
     "login": "Back to Login"
-  },
-  "dailyPlannerComingSoon": {
-    "title": "Coming Soon",
-    "description": "The Daily Planner is currently under development."
   },
   "dailyTask": {
     "addTitle": "Add Task",
@@ -159,11 +154,50 @@
       "startTimeRequired": "Please select a start time first.",
       "invalidEndTime": "End time must be after start time."
     },
-    "selectTime": "Select time"
+    "selectTime": "Select time",
+    "editTitle": "Edit Task",
+    "deleteTitle": "Delete Task",
+    "deleteConfirmation": "Are you sure you want to delete “{{title}}”?"
   },
-
   "timeWheel": {
     "confirm": "Confirm",
-    "clear": "No time"
+    "clear": "No time",
+    "hour": "Hour",
+    "minute": "Minute",
+    "period": "Period"
+  },
+  "backToSchedule": "Back to Schedule",
+  "scheduleLoading": "Loading your schedule, this may take up to one minute...",
+  "scheduleLoadError": "Unable to load your schedule. Please try again.",
+  "retry": "Try again",
+  "planner": {
+    "emptyTitle": "No tasks for this day",
+    "emptyDescription": "Add a task to start planning your day.",
+    "tasks": "Today's Tasks",
+    "schedule": "Today's Schedule",
+    "lecture": "Lecture",
+    "edit": "Edit task: {{title}}",
+    "complete": "Complete task: {{title}}",
+    "uncomplete": "Mark task incomplete: {{title}}",
+    "chooseDate": "Choose date",
+    "previousWeek": "Previous week",
+    "nextWeek": "Next week",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "today": "Today"
+  },
+  "authErrors": {
+    "notVerified": "Please verify your email before signing in.",
+    "emailExists": "An account with this email already exists.",
+    "invalidCredentials": "Incorrect email or password.",
+    "rateLimit": "Too many attempts. Please try again later."
+  },
+  "deleteSchedule": {
+    "title": "Delete entire schedule",
+    "message": "All courses and meetings in your study schedule will be deleted. This action cannot be undone.",
+    "confirm": "Delete schedule",
+    "deleting": "Deleting schedule...",
+    "success": "Your entire study schedule has been deleted.",
+    "error": "Unable to finish deleting the schedule. Confirmed deletions have been removed; the remaining courses are still shown. You can try again."
   }
 }

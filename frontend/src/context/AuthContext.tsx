@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import type { User } from "@supabase/supabase-js";
+import { authErrorKey } from "../lib/authErrors";
 import { supabase } from "../lib/supabaseClient";
 
 type AuthContextType = {
@@ -54,21 +55,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    return error ? error.message : null;
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return error ? authErrorKey(error, "loginFailed") : null;
+    } catch (error) {
+      return authErrorKey(error, "loginFailed");
+    }
   };
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    return error ? error.message : null;
+    try {
+      const { error } = await supabase.auth.signUp({ email, password });
+      return error ? authErrorKey(error, "registrationFailed") : null;
+    } catch (error) {
+      return authErrorKey(error, "registrationFailed");
+    }
   };
 
   const resetPassword = async (email: string) => {

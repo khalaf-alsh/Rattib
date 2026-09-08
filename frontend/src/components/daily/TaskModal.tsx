@@ -1,14 +1,17 @@
 import { useState, type FormEvent } from "react";
-import { CalendarDays, X } from "lucide-react";
+import { CalendarDays, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import CalendarPicker from "./CalendarPicker";
 import type { DailyTask, TaskReminder } from "../../types/dailyPlanner";
 import TimeWheelPicker from "../ui/TimeWheelPicker";
 import "./TaskModal.css";
+import "../schedule/DeleteScopeModal.css";
 
 type TaskModalProps = {
   selectedDate: Date;
+  task?: DailyTask;
+  onDelete?: () => void;
   onClose: () => void;
   onSave: (task: Omit<DailyTask, "id" | "completed">) => void;
 };
@@ -21,22 +24,27 @@ function formatDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function TaskModal({ selectedDate, onClose, onSave }: TaskModalProps) {
+function TaskModal({ selectedDate, task, onDelete, onClose, onSave }: TaskModalProps) {
   const { t, i18n } = useTranslation();
 
   const isArabic = i18n.language === "ar";
   const locale = isArabic ? "ar-SA" : "en-US";
 
-  const [title, setTitle] = useState("");
-  const [taskDate, setTaskDate] = useState(selectedDate);
+  const [title, setTitle] = useState(task?.title ?? "");
+  const [taskDate, setTaskDate] = useState(() => {
+    if (!task) return selectedDate;
+    const [year, month, day] = task.date.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  });
 
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
+  const [startTime, setStartTime] = useState(task?.startTime ?? "");
+  const [endTime, setEndTime] = useState(task?.endTime ?? "");
 
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(task?.notes ?? "");
 
-  const [reminder, setReminder] = useState<TaskReminder>("none");
+  const [reminder, setReminder] = useState<TaskReminder>(task?.reminder ?? "none");
 
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const [error, setError] = useState("");
@@ -46,6 +54,7 @@ function TaskModal({ selectedDate, onClose, onSave }: TaskModalProps) {
   >(null);
 
   const formattedDate = taskDate.toLocaleDateString(locale, {
+    calendar: "gregory",
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -68,17 +77,17 @@ function TaskModal({ selectedDate, onClose, onSave }: TaskModalProps) {
     setError("");
 
     if (!title.trim()) {
-      setError(t("dailyTask.errors.titleRequired"));
+      setError("dailyTask.errors.titleRequired");
       return;
     }
 
     if (endTime && !startTime) {
-      setError(t("dailyTask.errors.startTimeRequired"));
+      setError("dailyTask.errors.startTimeRequired");
       return;
     }
 
     if (startTime && endTime && endTime <= startTime) {
-      setError(t("dailyTask.errors.invalidEndTime"));
+      setError("dailyTask.errors.invalidEndTime");
       return;
     }
 
@@ -96,10 +105,12 @@ function TaskModal({ selectedDate, onClose, onSave }: TaskModalProps) {
     <div className="task-modal-overlay" onMouseDown={onClose}>
       <div
         className="task-modal"
+        onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); if (confirmDelete) setConfirmDelete(false); else if (activeTimePicker) setActiveTimePicker(null); else if (calendarOpen) setCalendarOpen(false); else onClose(); } }}
+        role="dialog" aria-modal="true" aria-labelledby="task-modal-title"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="task-modal-header">
-          <h2>{t("dailyTask.addTitle")}</h2>
+          <h2 id="task-modal-title">{t(task ? "dailyTask.editTitle" : "dailyTask.addTitle")}</h2>
 
           <button
             type="button"
@@ -229,9 +240,10 @@ function TaskModal({ selectedDate, onClose, onSave }: TaskModalProps) {
             />
           </div>
 
-          {error && <p className="task-modal-error">{error}</p>}
+          {error && <p className="task-modal-error" role="alert">{t(error)}</p>}
 
           <div className="task-modal-actions">
+            {task && onDelete && <button type="button" className="task-delete-button" onClick={() => setConfirmDelete(true)}><Trash2 size={18} />{t("delete")}</button>}
             <button
               type="button"
               className="task-modal-cancel"
@@ -241,10 +253,23 @@ function TaskModal({ selectedDate, onClose, onSave }: TaskModalProps) {
             </button>
 
             <button type="submit" className="task-modal-save">
-              {t("dailyTask.addTask")}
+              {t(task ? "saveChanges" : "dailyTask.addTask")}
             </button>
           </div>
         </form>
+        {confirmDelete && (
+          <div className="delete-scope-overlay" onMouseDown={(event) => event.stopPropagation()} onClick={() => setConfirmDelete(false)}>
+            <div className="delete-scope-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-task-title" aria-describedby="delete-task-description" onClick={(event) => event.stopPropagation()}>
+              <div className="delete-scope-header"><h3 id="delete-task-title">{t("dailyTask.deleteTitle")}</h3></div>
+              <div className="delete-confirmation"><p id="delete-task-description">{t("dailyTask.deleteConfirmation", { title: task?.title })}</p>
+                <div className="delete-confirmation-actions">
+                  <button type="button" autoFocus className="delete-cancel-button" onClick={() => setConfirmDelete(false)}>{t("cancel")}</button>
+                  <button type="button" className="confirm-delete-button" onClick={onDelete}><Trash2 size={17} />{t("delete")}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {activeTimePicker === "start" && (
           <TimeWheelPicker
             title={t("dailyTask.startTime")}

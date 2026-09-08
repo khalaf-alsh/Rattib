@@ -567,3 +567,47 @@
     display: none;
   }
 }
+
+.schedule-actions-with-delete { flex-wrap: wrap; gap: 12px; }
+.delete-entire-schedule-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  color: var(--danger);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.delete-entire-schedule-button:hover:not(:disabled) { background: var(--bg-tertiary); }
+.delete-entire-schedule-button:disabled,
+.delete-schedule-modal button:disabled { opacity: 0.6; cursor: not-allowed; }
+.delete-schedule-modal { max-height: calc(100dvh - 32px); overflow-y: auto; }
+.delete-schedule-modal .delete-schedule-error { color: var(--danger); }
+.delete-schedule-modal button { min-height: 44px; }
+.delete-entire-schedule-button svg, .delete-schedule-modal svg { flex-shrink: 0; }
+
+/* Keep controls and the action footer outside the single vertical scroller. */
+.study-schedule {
+  flex: 1;
+  min-width: 0;
+}
+.study-schedule > .classes-area,
+.study-schedule > .week-view {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding-bottom: calc(28px + env(safe-area-inset-bottom));
+}
+.study-schedule > .week-view { align-items: flex-start; }
+.study-schedule .week-day-column { align-self: flex-start; }
+.study-schedule .week-day-classes {
+  flex: none;
+  overflow: visible;
+}
+.study-schedule .week-course-card { flex-shrink: 0; }

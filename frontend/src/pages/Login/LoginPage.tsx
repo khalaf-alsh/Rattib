@@ -33,7 +33,7 @@ function LoginPage() {
     setSubmitting(false);
 
     if (authError) {
-      setError(t("loginFailed"));
+      setError(authError);
       return;
     }
 
@@ -97,7 +97,7 @@ function LoginPage() {
             <Link to="/forgot-password">{t("forgotPassword")}</Link>
           </div>
 
-          {error && <p className="auth-error">{error}</p>}
+          {error && <p className="auth-error" role="alert">{t(error)}</p>}
 
           <button type="submit" className="auth-submit" disabled={submitting}>
             {submitting ? t("loading") : t("login")}

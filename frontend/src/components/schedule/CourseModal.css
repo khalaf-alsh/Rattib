@@ -351,3 +351,7 @@
     margin: 0;
   }
 }
+
+.course-time-button { width: 100%; min-height: 46px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); background: var(--bg-primary); text-align: start; font: inherit; cursor: pointer; }
+.course-time-button:hover, .course-time-button:focus-visible { border-color: var(--accent); }
+.course-time-button[aria-invalid="true"] { border-color: var(--danger); }

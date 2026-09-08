@@ -30,12 +30,12 @@ function RegisterPage() {
     setError("");
 
     if (password !== confirmPassword) {
-      setError(t("passwordsDoNotMatch"));
+      setError("passwordsDoNotMatch");
       return;
     }
 
     if (password.length < 6) {
-      setError(t("passwordTooShort"));
+      setError("passwordTooShort");
       return;
     }
 
@@ -47,7 +47,7 @@ function RegisterPage() {
     setSubmitting(false);
 
     if (authError) {
-      setError(t("registrationFailed"));
+      setError(authError);
       return;
     }
 
@@ -138,7 +138,7 @@ function RegisterPage() {
             />
           </div>
 
-          {error && <p className="auth-error">{error}</p>}
+          {error && <p className="auth-error" role="alert">{t(error)}</p>}
 
           <button type="submit" className="auth-submit" disabled={submitting}>
             {submitting ? t("loading") : t("createAccount")}
