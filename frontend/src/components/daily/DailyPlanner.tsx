@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   CalendarDays,
   ChevronLeft,
@@ -12,6 +12,13 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { DailyTask } from "../../types/dailyPlanner";
+import {
+  createDailyTask,
+  deleteDailyTask,
+  getDailyTasks,
+  updateDailyTask,
+  updateDailyTaskCompletion,
+} from "../../services/dailyTaskService";
 import type { Course, Day, Meeting } from "../../types/schedule";
 import CalendarPicker from "./CalendarPicker";
 import "./DailyPlanner.css";
@@ -53,7 +60,15 @@ function formatDateKey(date: Date) {
 type TimelineEntry =
   | { kind: "task"; startTime: string; task: DailyTask }
   | { kind: "course"; startTime: string; course: Course; meeting: Meeting };
-const days: Day[] = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+const days: Day[] = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+];
 function DailyPlanner({ courses }: { courses: Course[] }) {
   const { t, i18n } = useTranslation();
 
@@ -66,23 +81,38 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<DailyTask | null>(null);
-  const handleSaveTask = (newTask: Omit<DailyTask, "id" | "completed">) => {
-    const task: DailyTask = {
-      ...newTask,
-      id: editingTask?.id ?? Math.max(0, ...tasks.map((task) => task.id)) + 1,
-      completed: editingTask?.completed ?? false,
-    };
+  const handleSaveTask = async (
+    taskInput: Omit<DailyTask, "id" | "completed">,
+  ) => {
+    try {
+      let savedTask: DailyTask;
 
-    setTasks((currentTasks) => editingTask ? currentTasks.map((current) => current.id === editingTask.id ? task : current) : [...currentTasks, task]);
+      if (editingTask) {
+        savedTask = await updateDailyTask(editingTask.id, taskInput);
 
-    setTaskModalOpen(false);
+        setTasks((currentTasks) =>
+          currentTasks.map((task) =>
+            task.id === editingTask.id ? savedTask : task,
+          ),
+        );
+      } else {
+        savedTask = await createDailyTask(taskInput);
 
-    const [year, month, day] = task.date.split("-").map(Number);
+        setTasks((currentTasks) => [...currentTasks, savedTask]);
+      }
 
-    const taskDate = new Date(year, month - 1, day);
+      setTaskModalOpen(false);
+      setEditingTask(null);
 
-    setSelectedDate(taskDate);
-    setWeekStart(getStartOfWeek(taskDate));
+      const [year, month, day] = savedTask.date.split("-").map(Number);
+
+      const taskDate = new Date(year, month - 1, day);
+
+      setSelectedDate(taskDate);
+      setWeekStart(getStartOfWeek(taskDate));
+    } catch (error) {
+      console.error("Failed to save daily task:", error);
+    }
   };
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
@@ -119,13 +149,45 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
   };
 
   const [tasks, setTasks] = useState<DailyTask[]>([]);
+  useEffect(() => {
+    let active = true;
 
-  const toggleTask = (taskId: number) => {
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === taskId ? { ...task, completed: !task.completed } : task,
-      ),
-    );
+    getDailyTasks()
+      .then((savedTasks) => {
+        if (active) {
+          setTasks(savedTasks);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load daily tasks:", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const toggleTask = async (taskId: number) => {
+    const task = tasks.find((currentTask) => currentTask.id === taskId);
+
+    if (!task) {
+      return;
+    }
+
+    try {
+      const updatedTask = await updateDailyTaskCompletion(
+        taskId,
+        !task.completed,
+      );
+
+      setTasks((currentTasks) =>
+        currentTasks.map((currentTask) =>
+          currentTask.id === taskId ? updatedTask : currentTask,
+        ),
+      );
+    } catch (error) {
+      console.error("Failed to update task completion:", error);
+    }
   };
 
   const selectedDateKey = formatDateKey(selectedDate);
@@ -143,15 +205,42 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
     );
 
   const timeline: TimelineEntry[] = [
-    ...timedTasks.map((task): TimelineEntry => ({ kind: "task", startTime: task.startTime!, task })),
-    ...courses.flatMap((course) => course.meetings.filter((meeting) => meeting.day === days[selectedDate.getDay()])
-      .map((meeting): TimelineEntry => ({ kind: "course", startTime: meeting.startTime, course, meeting }))),
+    ...timedTasks.map(
+      (task): TimelineEntry => ({
+        kind: "task",
+        startTime: task.startTime!,
+        task,
+      }),
+    ),
+    ...courses.flatMap((course) =>
+      course.meetings
+        .filter((meeting) => meeting.day === days[selectedDate.getDay()])
+        .map(
+          (meeting): TimelineEntry => ({
+            kind: "course",
+            startTime: meeting.startTime,
+            course,
+            meeting,
+          }),
+        ),
+    ),
   ].sort((a, b) => a.startTime.localeCompare(b.startTime));
-  const openTask = (task: DailyTask) => { setEditingTask(task); setTaskModalOpen(true); };
+  const openTask = (task: DailyTask) => {
+    setEditingTask(task);
+    setTaskModalOpen(true);
+  };
   const completionButton = (task: DailyTask) => (
-    <button type="button" className="daily-task-check" role="checkbox" aria-checked={task.completed}
-      aria-label={t(task.completed ? "planner.uncomplete" : "planner.complete", { title: task.title })}
-      onClick={() => toggleTask(task.id)}>
+    <button
+      type="button"
+      className="daily-task-check"
+      role="checkbox"
+      aria-checked={task.completed}
+      aria-label={t(
+        task.completed ? "planner.uncomplete" : "planner.complete",
+        { title: task.title },
+      )}
+      onClick={() => toggleTask(task.id)}
+    >
       {task.completed ? <Check size={18} /> : <Circle size={18} />}
     </button>
   );
@@ -263,7 +352,10 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
           type="button"
           className="daily-add-task-button"
           aria-label={t("dailyTask.addTask")}
-          onClick={() => { setEditingTask(null); setTaskModalOpen(true); }}
+          onClick={() => {
+            setEditingTask(null);
+            setTaskModalOpen(true);
+          }}
         >
           <Plus size={18} />
           <span>{t("dailyTask.addTask")}</span>
@@ -271,51 +363,139 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
       </div>
 
       <div className="daily-content">
-        {selectedDateTasks.length === 0 && timeline.length === 0 && <div className="daily-empty" role="status">
-          <CalendarDays size={28} /><h3>{t("planner.emptyTitle")}</h3><p>{t("planner.emptyDescription")}</p>
-        </div>}
-        {tasksWithoutTime.length > 0 && <section className="daily-tasks-section">
-          <div className="daily-section-header"><h3>{t("planner.tasks")}</h3><span>{tasksWithoutTime.filter((task) => !task.completed).length}</span></div>
-          <div className="daily-task-list">{tasksWithoutTime.map((task) => (
-            <div key={task.id} className={`daily-task-item ${task.completed ? "completed" : ""}`}>
-              <button type="button" className="daily-task-edit" onClick={() => openTask(task)} aria-label={t("planner.edit", { title: task.title })}>
-                <span className="daily-task-title">{task.title}</span>
-              </button>
-              {taskActions(task)}
+        {selectedDateTasks.length === 0 && timeline.length === 0 && (
+          <div className="daily-empty" role="status">
+            <CalendarDays size={28} />
+            <h3>{t("planner.emptyTitle")}</h3>
+            <p>{t("planner.emptyDescription")}</p>
+          </div>
+        )}
+        {tasksWithoutTime.length > 0 && (
+          <section className="daily-tasks-section">
+            <div className="daily-section-header">
+              <h3>{t("planner.tasks")}</h3>
+              <span>
+                {tasksWithoutTime.filter((task) => !task.completed).length}
+              </span>
             </div>
-          ))}</div>
-        </section>}
-        {timeline.length > 0 && <section className="daily-timeline-section">
-          <div className="daily-section-header"><h3>{t("planner.schedule")}</h3></div>
-          <div className="daily-timeline">{timeline.map((entry) => entry.kind === "task" ? (
-            <div key={`task-${entry.task.id}`} className={`daily-timeline-item ${entry.task.completed ? "completed" : ""}`}>
-              <div className="daily-timeline-time"><Clock size={15} /><span>{formatTime(entry.startTime)}</span></div>
-              <div className="daily-timeline-card">
-                <button type="button" className="daily-task-edit" onClick={() => openTask(entry.task)} aria-label={t("planner.edit", { title: entry.task.title })}>
-                  <span className="daily-timeline-card-content"><strong>{entry.task.title}</strong>
-                    {entry.task.endTime && <span>{formatTime(entry.startTime)} – {formatTime(entry.task.endTime)}</span>}
-                  </span>
-                </button>
-                {taskActions(entry.task)}
-              </div>
+            <div className="daily-task-list">
+              {tasksWithoutTime.map((task) => (
+                <div
+                  key={task.id}
+                  className={`daily-task-item ${task.completed ? "completed" : ""}`}
+                >
+                  <button
+                    type="button"
+                    className="daily-task-edit"
+                    onClick={() => openTask(task)}
+                    aria-label={t("planner.edit", { title: task.title })}
+                  >
+                    <span className="daily-task-title">{task.title}</span>
+                  </button>
+                  {taskActions(task)}
+                </div>
+              ))}
             </div>
-          ) : (
-            <div key={`course-${entry.course.id}-${entry.meeting.day}-${entry.startTime}`} className="daily-timeline-item">
-              <div className="daily-timeline-time"><Clock size={15} /><span>{formatTime(entry.startTime)}</span></div>
-              <div className="daily-timeline-card daily-course-card"><div className="daily-timeline-card-content">
-                <span className="daily-course-label"><BookOpen size={15} />{t("planner.lecture")}</span>
-                <strong>{entry.course.name}</strong><span>{formatTime(entry.startTime)} – {formatTime(entry.meeting.endTime)}</span>
-                {entry.course.room && <span>{t("room")}: {entry.course.room}</span>}
-                {entry.course.doctor && <span>{t("doctor")}: {entry.course.doctor}</span>}
-              </div></div>
+          </section>
+        )}
+        {timeline.length > 0 && (
+          <section className="daily-timeline-section">
+            <div className="daily-section-header">
+              <h3>{t("planner.schedule")}</h3>
             </div>
-          ))}</div>
-        </section>}
+            <div className="daily-timeline">
+              {timeline.map((entry) =>
+                entry.kind === "task" ? (
+                  <div
+                    key={`task-${entry.task.id}`}
+                    className={`daily-timeline-item ${entry.task.completed ? "completed" : ""}`}
+                  >
+                    <div className="daily-timeline-time">
+                      <Clock size={15} />
+                      <span>{formatTime(entry.startTime)}</span>
+                    </div>
+                    <div className="daily-timeline-card">
+                      <button
+                        type="button"
+                        className="daily-task-edit"
+                        onClick={() => openTask(entry.task)}
+                        aria-label={t("planner.edit", {
+                          title: entry.task.title,
+                        })}
+                      >
+                        <span className="daily-timeline-card-content">
+                          <strong>{entry.task.title}</strong>
+                          {entry.task.endTime && (
+                            <span>
+                              {formatTime(entry.startTime)} –{" "}
+                              {formatTime(entry.task.endTime)}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                      {taskActions(entry.task)}
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    key={`course-${entry.course.id}-${entry.meeting.day}-${entry.startTime}`}
+                    className="daily-timeline-item"
+                  >
+                    <div className="daily-timeline-time">
+                      <Clock size={15} />
+                      <span>{formatTime(entry.startTime)}</span>
+                    </div>
+                    <div className="daily-timeline-card daily-course-card">
+                      <div className="daily-timeline-card-content">
+                        <span className="daily-course-label">
+                          <BookOpen size={15} />
+                          {t("planner.lecture")}
+                        </span>
+                        <strong>{entry.course.name}</strong>
+                        <span>
+                          {formatTime(entry.startTime)} –{" "}
+                          {formatTime(entry.meeting.endTime)}
+                        </span>
+                        {entry.course.room && (
+                          <span>
+                            {t("room")}: {entry.course.room}
+                          </span>
+                        )}
+                        {entry.course.doctor && (
+                          <span>
+                            {t("doctor")}: {entry.course.doctor}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ),
+              )}
+            </div>
+          </section>
+        )}
       </div>
       {taskModalOpen && (
         <TaskModal
           task={editingTask ?? undefined}
-          onDelete={() => { setTasks((current) => current.filter((task) => task.id !== editingTask?.id)); setTaskModalOpen(false); }}
+          onDelete={async () => {
+            if (!editingTask) {
+              return;
+            }
+
+            try {
+              await deleteDailyTask(editingTask.id);
+
+              setTasks((currentTasks) =>
+                currentTasks.filter((task) => task.id !== editingTask.id),
+              );
+
+              setTaskModalOpen(false);
+              setEditingTask(null);
+            } catch (error) {
+              console.error("Failed to delete daily task:", error);
+            }
+          }}
           selectedDate={selectedDate}
           onClose={() => setTaskModalOpen(false)}
           onSave={handleSaveTask}

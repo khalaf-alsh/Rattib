@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import CalendarPicker from "./CalendarPicker";
 import type { DailyTask, TaskReminder } from "../../types/dailyPlanner";
 import TimeWheelPicker from "../ui/TimeWheelPicker";
+
 import "./TaskModal.css";
 import "../schedule/DeleteScopeModal.css";
 
@@ -24,33 +25,50 @@ function formatDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function TaskModal({ selectedDate, task, onDelete, onClose, onSave }: TaskModalProps) {
+function TaskModal({
+  selectedDate,
+  task,
+  onDelete,
+  onClose,
+  onSave,
+}: TaskModalProps) {
   const { t, i18n } = useTranslation();
 
   const isArabic = i18n.language === "ar";
   const locale = isArabic ? "ar-SA" : "en-US";
 
   const [title, setTitle] = useState(task?.title ?? "");
+
   const [taskDate, setTaskDate] = useState(() => {
-    if (!task) return selectedDate;
+    if (!task) {
+      return selectedDate;
+    }
+
     const [year, month, day] = task.date.split("-").map(Number);
+
     return new Date(year, month - 1, day);
   });
 
   const [startTime, setStartTime] = useState(task?.startTime ?? "");
+
   const [endTime, setEndTime] = useState(task?.endTime ?? "");
 
   const [notes, setNotes] = useState(task?.notes ?? "");
 
-  const [reminder, setReminder] = useState<TaskReminder>(task?.reminder ?? "none");
+  const [reminder, setReminder] = useState<TaskReminder>(
+    task?.reminder ?? "none",
+  );
+
+  const [reminderTime, setReminderTime] = useState(task?.reminderTime ?? "");
 
   const [confirmDelete, setConfirmDelete] = useState(false);
+
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const [error, setError] = useState("");
 
   const [activeTimePicker, setActiveTimePicker] = useState<
-    "start" | "end" | null
+    "start" | "end" | "reminder" | null
   >(null);
 
   const formattedDate = taskDate.toLocaleDateString(locale, {
@@ -71,6 +89,21 @@ function TaskModal({ selectedDate, task, onDelete, onClose, onSave }: TaskModalP
 
     return `${hour}:${minute.toString().padStart(2, "0")} ${period}`;
   };
+
+  const resetReminder = () => {
+    setReminder("none");
+    setReminderTime("");
+  };
+
+  const handleReminderChange = (value: TaskReminder) => {
+    setReminder(value);
+    setError("");
+
+    if (value !== "customTime") {
+      setReminderTime("");
+    }
+  };
+
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
 
@@ -91,13 +124,31 @@ function TaskModal({ selectedDate, task, onDelete, onClose, onSave }: TaskModalP
       return;
     }
 
+    if (!startTime && reminder === "customTime" && !reminderTime) {
+      setError("dailyTask.errors.reminderTimeRequired");
+      return;
+    }
+
+    const timeZone =
+      reminder !== "none"
+        ? Intl.DateTimeFormat().resolvedOptions().timeZone
+        : undefined;
+
     onSave({
       title: title.trim(),
       date: formatDateKey(taskDate),
+
       startTime: startTime || undefined,
       endTime: endTime || undefined,
+
       notes: notes.trim() || undefined,
+
       reminder,
+
+      reminderTime:
+        reminder === "customTime" ? reminderTime || undefined : undefined,
+
+      timeZone,
     });
   };
 
@@ -105,12 +156,32 @@ function TaskModal({ selectedDate, task, onDelete, onClose, onSave }: TaskModalP
     <div className="task-modal-overlay" onMouseDown={onClose}>
       <div
         className="task-modal"
-        onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); if (confirmDelete) setConfirmDelete(false); else if (activeTimePicker) setActiveTimePicker(null); else if (calendarOpen) setCalendarOpen(false); else onClose(); } }}
-        role="dialog" aria-modal="true" aria-labelledby="task-modal-title"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="task-modal-title"
         onMouseDown={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key !== "Escape") {
+            return;
+          }
+
+          event.stopPropagation();
+
+          if (confirmDelete) {
+            setConfirmDelete(false);
+          } else if (activeTimePicker) {
+            setActiveTimePicker(null);
+          } else if (calendarOpen) {
+            setCalendarOpen(false);
+          } else {
+            onClose();
+          }
+        }}
       >
         <div className="task-modal-header">
-          <h2 id="task-modal-title">{t(task ? "dailyTask.editTitle" : "dailyTask.addTitle")}</h2>
+          <h2 id="task-modal-title">
+            {t(task ? "dailyTask.editTitle" : "dailyTask.addTitle")}
+          </h2>
 
           <button
             type="button"
@@ -205,28 +276,58 @@ function TaskModal({ selectedDate, task, onDelete, onClose, onSave }: TaskModalP
               id="task-reminder"
               value={reminder}
               onChange={(event) =>
-                setReminder(event.target.value as TaskReminder)
+                handleReminderChange(event.target.value as TaskReminder)
               }
             >
               <option value="none">{t("dailyTask.reminders.none")}</option>
 
-              <option value="atTime">{t("dailyTask.reminders.atTime")}</option>
+              {startTime ? (
+                <>
+                  <option value="atTime">
+                    {t("dailyTask.reminders.atTime")}
+                  </option>
 
-              <option value="10Minutes">
-                {t("dailyTask.reminders.tenMinutes")}
-              </option>
+                  <option value="10Minutes">
+                    {t("dailyTask.reminders.tenMinutes")}
+                  </option>
 
-              <option value="15Minutes">
-                {t("dailyTask.reminders.fifteenMinutes")}
-              </option>
+                  <option value="15Minutes">
+                    {t("dailyTask.reminders.fifteenMinutes")}
+                  </option>
 
-              <option value="30Minutes">
-                {t("dailyTask.reminders.thirtyMinutes")}
-              </option>
+                  <option value="30Minutes">
+                    {t("dailyTask.reminders.thirtyMinutes")}
+                  </option>
 
-              <option value="1Hour">{t("dailyTask.reminders.oneHour")}</option>
+                  <option value="1Hour">
+                    {t("dailyTask.reminders.oneHour")}
+                  </option>
+                </>
+              ) : (
+                <option value="customTime">
+                  {t("dailyTask.reminders.customTime")}
+                </option>
+              )}
             </select>
           </div>
+
+          {!startTime && reminder === "customTime" && (
+            <div className="task-form-field">
+              <label>{t("dailyTask.reminderTime")}</label>
+
+              <button
+                type="button"
+                className={`task-time-button ${
+                  reminderTime ? "has-value" : ""
+                }`}
+                onClick={() => setActiveTimePicker("reminder")}
+              >
+                {reminderTime
+                  ? formatTimeForDisplay(reminderTime)
+                  : t("dailyTask.selectTime")}
+              </button>
+            </div>
+          )}
 
           <div className="task-form-field">
             <label htmlFor="task-notes">{t("dailyTask.notes")}</label>
@@ -240,10 +341,24 @@ function TaskModal({ selectedDate, task, onDelete, onClose, onSave }: TaskModalP
             />
           </div>
 
-          {error && <p className="task-modal-error" role="alert">{t(error)}</p>}
+          {error && (
+            <p className="task-modal-error" role="alert">
+              {t(error)}
+            </p>
+          )}
 
           <div className="task-modal-actions">
-            {task && onDelete && <button type="button" className="task-delete-button" onClick={() => setConfirmDelete(true)}><Trash2 size={18} />{t("delete")}</button>}
+            {task && onDelete && (
+              <button
+                type="button"
+                className="task-delete-button"
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 size={18} />
+                {t("delete")}
+              </button>
+            )}
+
             <button
               type="button"
               className="task-modal-cancel"
@@ -257,19 +372,56 @@ function TaskModal({ selectedDate, task, onDelete, onClose, onSave }: TaskModalP
             </button>
           </div>
         </form>
+
         {confirmDelete && (
-          <div className="delete-scope-overlay" onMouseDown={(event) => event.stopPropagation()} onClick={() => setConfirmDelete(false)}>
-            <div className="delete-scope-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-task-title" aria-describedby="delete-task-description" onClick={(event) => event.stopPropagation()}>
-              <div className="delete-scope-header"><h3 id="delete-task-title">{t("dailyTask.deleteTitle")}</h3></div>
-              <div className="delete-confirmation"><p id="delete-task-description">{t("dailyTask.deleteConfirmation", { title: task?.title })}</p>
+          <div
+            className="delete-scope-overlay"
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={() => setConfirmDelete(false)}
+          >
+            <div
+              className="delete-scope-modal"
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="delete-task-title"
+              aria-describedby="delete-task-description"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="delete-scope-header">
+                <h3 id="delete-task-title">{t("dailyTask.deleteTitle")}</h3>
+              </div>
+
+              <div className="delete-confirmation">
+                <p id="delete-task-description">
+                  {t("dailyTask.deleteConfirmation", {
+                    title: task?.title,
+                  })}
+                </p>
+
                 <div className="delete-confirmation-actions">
-                  <button type="button" autoFocus className="delete-cancel-button" onClick={() => setConfirmDelete(false)}>{t("cancel")}</button>
-                  <button type="button" className="confirm-delete-button" onClick={onDelete}><Trash2 size={17} />{t("delete")}</button>
+                  <button
+                    type="button"
+                    autoFocus
+                    className="delete-cancel-button"
+                    onClick={() => setConfirmDelete(false)}
+                  >
+                    {t("cancel")}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="confirm-delete-button"
+                    onClick={onDelete}
+                  >
+                    <Trash2 size={17} />
+                    {t("delete")}
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         )}
+
         {activeTimePicker === "start" && (
           <TimeWheelPicker
             title={t("dailyTask.startTime")}
@@ -278,10 +430,20 @@ function TaskModal({ selectedDate, task, onDelete, onClose, onSave }: TaskModalP
             onClear={() => {
               setStartTime("");
               setEndTime("");
+
+              resetReminder();
+
               setActiveTimePicker(null);
             }}
             onConfirm={(value) => {
+              const wasUntimed = !startTime;
+
               setStartTime(value);
+
+              if (wasUntimed && reminder === "customTime") {
+                resetReminder();
+              }
+
               setActiveTimePicker(null);
             }}
           />
@@ -298,6 +460,23 @@ function TaskModal({ selectedDate, task, onDelete, onClose, onSave }: TaskModalP
             }}
             onConfirm={(value) => {
               setEndTime(value);
+              setActiveTimePicker(null);
+            }}
+          />
+        )}
+
+        {activeTimePicker === "reminder" && (
+          <TimeWheelPicker
+            title={t("dailyTask.reminderTime")}
+            value={reminderTime || undefined}
+            onClose={() => setActiveTimePicker(null)}
+            onClear={() => {
+              setReminderTime("");
+              setReminder("none");
+              setActiveTimePicker(null);
+            }}
+            onConfirm={(value) => {
+              setReminderTime(value);
               setActiveTimePicker(null);
             }}
           />

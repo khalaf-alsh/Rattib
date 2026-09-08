@@ -141,7 +141,9 @@
     "notes": "ملاحظات",
     "notesPlaceholder": "ملاحظات إضافية...",
     "reminder": "التذكير",
+    "reminderTime": "وقت التذكير",
     "reminders": {
+      "customTime": "تحديد وقت",
       "none": "بدون تذكير",
       "atTime": "وقت المهمة",
       "tenMinutes": "قبل 10 دقائق",
@@ -152,7 +154,8 @@
     "errors": {
       "titleRequired": "يرجى إدخال اسم المهمة.",
       "startTimeRequired": "يرجى تحديد وقت البداية أولاً.",
-      "invalidEndTime": "يجب أن يكون وقت النهاية بعد وقت البداية."
+      "invalidEndTime": "يجب أن يكون وقت النهاية بعد وقت البداية.",
+      "reminderTimeRequired": "يرجى تحديد وقت للتذكير"
     },
     "selectTime": "اختر الوقت",
     "editTitle": "تعديل مهمة",

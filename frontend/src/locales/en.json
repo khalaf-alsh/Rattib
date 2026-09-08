@@ -131,6 +131,7 @@
     "login": "Back to Login"
   },
   "dailyTask": {
+    "reminderTime": "Reminder Time",
     "addTitle": "Add Task",
     "addTask": "Add Task",
     "taskName": "Task Name",
@@ -142,6 +143,7 @@
     "notesPlaceholder": "Additional notes...",
     "reminder": "Reminder",
     "reminders": {
+      "customTime": "Custom Time",
       "none": "No reminder",
       "atTime": "At task time",
       "tenMinutes": "10 minutes before",
@@ -150,6 +152,7 @@
       "oneHour": "1 hour before"
     },
     "errors": {
+      "reminderTimeRequired": "Please select a reminder time.",
       "titleRequired": "Please enter a task name.",
       "startTimeRequired": "Please select a start time first.",
       "invalidEndTime": "End time must be after start time."

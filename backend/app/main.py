@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes.auth import router as auth_router
 from app.routes.courses import router as courses_router
+from app.routes.daily_tasks import router as daily_tasks_router
+from app.routes.push_subscriptions import router as push_subscriptions_router
 
 
 app = FastAPI(
@@ -26,7 +28,8 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(courses_router)
-
+app.include_router(daily_tasks_router)
+app.include_router(push_subscriptions_router)
 
 @app.get("/api/health")
 def health_check():
