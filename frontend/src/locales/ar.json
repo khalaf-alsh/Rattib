@@ -155,7 +155,8 @@
       "titleRequired": "يرجى إدخال اسم المهمة.",
       "startTimeRequired": "يرجى تحديد وقت البداية أولاً.",
       "invalidEndTime": "يجب أن يكون وقت النهاية بعد وقت البداية.",
-      "reminderTimeRequired": "يرجى تحديد وقت للتذكير"
+      "reminderTimeRequired": "يرجى تحديد وقت للتذكير",
+      "reminderMustBeFuture": "وقت التذكير يجب أن يكون في المستقبل."
     },
     "selectTime": "اختر الوقت",
     "editTitle": "تعديل مهمة",
@@ -202,5 +203,23 @@
     "deleting": "جارٍ حذف الجدول...",
     "success": "تم حذف الجدول الدراسي بالكامل.",
     "error": "تعذر إكمال حذف الجدول. أُزيلت المواد التي تم تأكيد حذفها، وبقيت المواد الأخرى ظاهرة. يمكنك إعادة المحاولة."
-  }
+  },
+  "notifications": "الإشعارات",
+  "notificationsDescription": "فعّل الإشعارات لاستقبال تذكيرات المهام",
+  "notificationStatus": "الحالة",
+  "notificationEnabled": "مفعلة",
+  "notificationDisabled": "غير مفعلة",
+  "notificationBlocked": "محظورة",
+  "notificationUnsupported": "غير مدعومة",
+  "enableNotifications": "تفعيل الإشعارات",
+  "enablingNotifications": "جارٍ التفعيل...",
+  "notificationsEnabledSuccess": "تم تفعيل الإشعارات بنجاح",
+  "notificationPermissionDenied": "تم حظر إذن الإشعارات",
+  "notificationEnableFailed": "تعذر تفعيل الإشعارات",
+  "notificationBlockedDescription": "اسمح بالإشعارات من إعدادات المتصفح ثم حاول مرة أخرى",
+  "disableNotifications": "إيقاف الإشعارات",
+  "disablingNotifications": "جارٍ الإيقاف...",
+  "notificationsDisabledSuccess": "تم إيقاف الإشعارات",
+  "backToPreviousPage": "الرجوع إلى الصفحة السابقة",
+  "notificationDisableFailed": "تعذر إيقاف الإشعارات"
 }

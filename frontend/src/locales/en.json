@@ -155,7 +155,8 @@
       "reminderTimeRequired": "Please select a reminder time.",
       "titleRequired": "Please enter a task name.",
       "startTimeRequired": "Please select a start time first.",
-      "invalidEndTime": "End time must be after start time."
+      "invalidEndTime": "End time must be after start time.",
+      "reminderMustBeFuture": "The reminder time must be in the future."
     },
     "selectTime": "Select time",
     "editTitle": "Edit Task",
@@ -202,5 +203,23 @@
     "deleting": "Deleting schedule...",
     "success": "Your entire study schedule has been deleted.",
     "error": "Unable to finish deleting the schedule. Confirmed deletions have been removed; the remaining courses are still shown. You can try again."
-  }
+  },
+  "notifications": "Notifications",
+  "notificationsDescription": "Enable notifications to receive task reminders",
+  "notificationStatus": "Status",
+  "notificationEnabled": "Enabled",
+  "notificationDisabled": "Disabled",
+  "notificationBlocked": "Blocked",
+  "notificationUnsupported": "Not supported",
+  "enableNotifications": "Enable Notifications",
+  "enablingNotifications": "Enabling...",
+  "notificationsEnabledSuccess": "Notifications enabled successfully",
+  "notificationPermissionDenied": "Notification permission is blocked",
+  "notificationEnableFailed": "Unable to enable notifications",
+  "disableNotifications": "Disable Notifications",
+  "disablingNotifications": "Disabling...",
+  "notificationsDisabledSuccess": "Notifications disabled successfully",
+  "notificationDisableFailed": "Unable to disable notifications",
+  "backToPreviousPage": "Back to previous page",
+  "notificationBlockedDescription": "Allow notifications in your browser settings, then try again"
 }

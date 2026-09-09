@@ -1,4 +1,12 @@
-import { ArrowLeft, ArrowRight, LockKeyhole, LogOut, Mail, UserRound } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  LockKeyhole,
+  LogOut,
+  Mail,
+  UserRound,
+  Bell,
+} from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
@@ -6,6 +14,12 @@ import { useAuth } from "../../context/AuthContext";
 import Toast from "../../components/ui/Toast";
 import "./AccountPage.css";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import {
+  enablePushNotifications,
+  getPushNotificationStatus,
+  disablePushNotifications,
+  type PushNotificationStatus,
+} from "../../services/pushSubscriptionService";
 
 function AccountPage() {
   const { t, i18n } = useTranslation();
@@ -25,8 +39,44 @@ function AccountPage() {
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
+  const [notificationStatus, setNotificationStatus] =
+    useState<PushNotificationStatus>("disabled");
+
+  const [checkingNotifications, setCheckingNotifications] = useState(true);
+
+  const [enablingNotifications, setEnablingNotifications] = useState(false);
+
+  const [disablingNotifications, setDisablingNotifications] = useState(false);
+
+  const [notificationError, setNotificationError] = useState("");
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   usePageTitle("pageTitles.account");
+
+  useEffect(() => {
+    let mounted = true;
+
+    // Detect the current browser push state when the Account page opens.
+    const loadNotificationStatus = async () => {
+      try {
+        const status = await getPushNotificationStatus();
+
+        if (mounted) {
+          setNotificationStatus(status);
+        }
+      } finally {
+        if (mounted) {
+          setCheckingNotifications(false);
+        }
+      }
+    };
+
+    void loadNotificationStatus();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
   useEffect(() => {
     if (!toastMessage) {
       return;
@@ -104,6 +154,46 @@ function AccountPage() {
     setToastMessage(t("passwordUpdateSuccess"));
   };
 
+  const handleEnableNotifications = async () => {
+    setNotificationError("");
+    setEnablingNotifications(true);
+
+    try {
+      await enablePushNotifications();
+
+      setNotificationStatus("enabled");
+      setToastMessage(t("notificationsEnabledSuccess"));
+    } catch {
+      const status = await getPushNotificationStatus();
+
+      setNotificationStatus(status);
+
+      if (status === "blocked") {
+        setNotificationError(t("notificationPermissionDenied"));
+      } else {
+        setNotificationError(t("notificationEnableFailed"));
+      }
+    } finally {
+      setEnablingNotifications(false);
+    }
+  };
+
+  const handleDisableNotifications = async () => {
+    setNotificationError("");
+    setDisablingNotifications(true);
+
+    try {
+      await disablePushNotifications();
+
+      setNotificationStatus("disabled");
+      setToastMessage(t("notificationsDisabledSuccess"));
+    } catch {
+      setNotificationError(t("notificationDisableFailed"));
+    } finally {
+      setDisablingNotifications(false);
+    }
+  };
+
   const handleLogout = async () => {
     setLoggingOut(true);
 
@@ -116,7 +206,14 @@ function AccountPage() {
 
   return (
     <div className="account-page">
-      <Link className="account-back-link" to="/schedule">{i18n.dir() === "rtl" ? <ArrowRight size={20} /> : <ArrowLeft size={20} />}{t("backToSchedule")}</Link>
+      <Link className="account-back-link" to="/schedule">
+        {i18n.dir() === "rtl" ? (
+          <ArrowRight size={20} />
+        ) : (
+          <ArrowLeft size={20} />
+        )}
+        {t("backToSchedule")}
+      </Link>
       <section className="profile-header">
         <div className="profile-avatar">
           <UserRound size={38} />
@@ -228,6 +325,72 @@ function AccountPage() {
               {updatingPassword ? t("loading") : t("updatePassword")}
             </button>
           </form>
+        </section>
+
+        <section className="account-card">
+          <div className="account-card-heading">
+            <div className="account-card-icon">
+              <Bell size={20} />
+            </div>
+
+            <div>
+              <h3>{t("notifications")}</h3>
+              <p>{t("notificationsDescription")}</p>
+            </div>
+          </div>
+
+          <div className="notification-settings">
+            <div className="notification-status-row">
+              <span>{t("notificationStatus")}</span>
+
+              <strong>
+                {checkingNotifications
+                  ? t("loading")
+                  : notificationStatus === "enabled"
+                    ? t("notificationEnabled")
+                    : notificationStatus === "blocked"
+                      ? t("notificationBlocked")
+                      : notificationStatus === "unsupported"
+                        ? t("notificationUnsupported")
+                        : t("notificationDisabled")}
+              </strong>
+            </div>
+
+            {notificationError && (
+              <span className="account-error">{notificationError}</span>
+            )}
+
+            {!checkingNotifications && notificationStatus === "disabled" && (
+              <button
+                type="button"
+                className="account-primary-button"
+                disabled={enablingNotifications}
+                onClick={handleEnableNotifications}
+              >
+                {enablingNotifications
+                  ? t("enablingNotifications")
+                  : t("enableNotifications")}
+              </button>
+            )}
+            {!checkingNotifications && notificationStatus === "enabled" && (
+              <button
+                type="button"
+                className="notification-disable-button"
+                disabled={disablingNotifications}
+                onClick={handleDisableNotifications}
+              >
+                {disablingNotifications
+                  ? t("disablingNotifications")
+                  : t("disableNotifications")}
+              </button>
+            )}
+
+            {notificationStatus === "blocked" && (
+              <p className="notification-help">
+                {t("notificationBlockedDescription")}
+              </p>
+            )}
+          </div>
         </section>
 
         <section className="account-card danger-card">

@@ -19,8 +19,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: "/favicon.svg",
-      badge: "/favicon.svg",
+      icon: "/ratteb-notification-icon.png",
+      badge: "/ratteb-notification-icon.png",
       data: {
         url: data.url,
       },

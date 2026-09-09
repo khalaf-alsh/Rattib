@@ -25,6 +25,58 @@ function formatDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+const REMINDER_OFFSETS_MINUTES: Partial<Record<TaskReminder, number>> = {
+  atTime: 0,
+  "10Minutes": 10,
+  "15Minutes": 15,
+  "30Minutes": 30,
+  "1Hour": 60,
+};
+
+function createLocalDateTime(date: Date, time: string) {
+  const [hours, minutes] = time.split(":").map(Number);
+
+  const result = new Date(date);
+
+  result.setHours(hours, minutes, 0, 0);
+
+  return result;
+}
+
+function calculateReminderDate(
+  date: Date,
+  startTime: string,
+  reminder: TaskReminder,
+  reminderTime: string,
+): Date | null {
+  // Calculate the reminder in the browser's local time before saving.
+  if (reminder === "none") {
+    return null;
+  }
+
+  if (reminder === "customTime") {
+    if (!reminderTime) {
+      return null;
+    }
+
+    return createLocalDateTime(date, reminderTime);
+  }
+
+  if (!startTime) {
+    return null;
+  }
+
+  const taskStart = createLocalDateTime(date, startTime);
+
+  const offset = REMINDER_OFFSETS_MINUTES[reminder];
+
+  if (offset === undefined) {
+    return null;
+  }
+
+  return new Date(taskStart.getTime() - offset * 60 * 1000);
+}
+
 function TaskModal({
   selectedDate,
   task,
@@ -127,6 +179,20 @@ function TaskModal({
     if (!startTime && reminder === "customTime" && !reminderTime) {
       setError("dailyTask.errors.reminderTimeRequired");
       return;
+    }
+
+    if (reminder !== "none") {
+      const reminderDate = calculateReminderDate(
+        taskDate,
+        startTime,
+        reminder,
+        reminderTime,
+      );
+
+      if (reminderDate && reminderDate <= new Date()) {
+        setError("dailyTask.errors.reminderMustBeFuture");
+        return;
+      }
     }
 
     const timeZone =

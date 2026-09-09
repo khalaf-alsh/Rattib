@@ -13,6 +13,19 @@ REMINDER_OFFSETS = {
 }
 
 
+def ensure_future_reminder(
+    reminder_at: datetime,
+    time_zone: ZoneInfo,
+) -> datetime:
+    # Reject reminders that are already due or in the past.
+    if reminder_at <= datetime.now(time_zone):
+        raise ValueError(
+            "Reminder time must be in the future"
+        )
+
+    return reminder_at
+
+
 def calculate_reminder_at(
     task: DailyTaskInput,
 ) -> datetime | None:
@@ -27,20 +40,25 @@ def calculate_reminder_at(
     except ZoneInfoNotFoundError:
         raise ValueError("Invalid time zone")
 
-    # مهمة بدون وقت بداية
+    # Calculate a reminder for tasks without a start time.
     if task.reminder == "customTime":
         if task.reminderTime is None:
             raise ValueError(
                 "Reminder time is required"
             )
 
-        return datetime.combine(
+        reminder_at = datetime.combine(
             task.date,
             task.reminderTime,
             tzinfo=time_zone,
         )
 
-    # مهمة لها Start Time
+        return ensure_future_reminder(
+            reminder_at,
+            time_zone,
+        )
+
+    # Calculate a relative reminder for timed tasks.
     if task.startTime is None:
         raise ValueError(
             "Start time is required for this reminder"
@@ -59,4 +77,9 @@ def calculate_reminder_at(
             "Unsupported reminder type"
         )
 
-    return task_start - offset
+    reminder_at = task_start - offset
+
+    return ensure_future_reminder(
+        reminder_at,
+        time_zone,
+    )

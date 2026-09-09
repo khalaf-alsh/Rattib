@@ -20,9 +20,19 @@ type WheelColumnProps = {
   onChange: (value: string) => void;
   ariaLabel: string;
   renderValue?: (value: string) => string;
+  circular?: boolean;
 };
 
 const ITEM_HEIGHT = 44;
+
+const CIRCULAR_COPIES = 7;
+const CIRCULAR_CENTER_COPY = Math.floor(CIRCULAR_COPIES / 2);
+
+const PERIOD_VALUES: Period[] = ["AM", "PM"];
+
+function getWrappedIndex(index: number, length: number) {
+  return ((index % length) + length) % length;
+}
 
 function WheelColumn({
   values,
@@ -30,6 +40,7 @@ function WheelColumn({
   onChange,
   ariaLabel,
   renderValue,
+  circular = false,
 }: WheelColumnProps) {
   const wheelRef = useRef<HTMLDivElement>(null);
 
@@ -41,8 +52,42 @@ function WheelColumn({
 
   const wheelTimerRef = useRef<number | null>(null);
 
+  const recenterTimerRef = useRef<number | null>(null);
+
+  const suppressNextSyncRef = useRef(false);
+
+  // Circular columns repeat their values several times so the user
+  // can scroll across boundaries without reaching a visible end.
+  const displayValues = useMemo(() => {
+    if (!circular) {
+      return values;
+    }
+
+    return Array.from({ length: CIRCULAR_COPIES }, () => values).flat();
+  }, [circular, values]);
+
+  const getCenteredIndex = (value: string) => {
+    const baseIndex = values.indexOf(value);
+
+    if (baseIndex < 0) {
+      return -1;
+    }
+
+    if (!circular) {
+      return baseIndex;
+    }
+
+    return CIRCULAR_CENTER_COPY * values.length + baseIndex;
+  };
+
   useEffect(() => {
-    const index = values.indexOf(selectedValue);
+    if (suppressNextSyncRef.current) {
+      suppressNextSyncRef.current = false;
+
+      return;
+    }
+
+    const index = getCenteredIndex(selectedValue);
 
     if (index < 0 || !wheelRef.current) {
       return;
@@ -52,15 +97,79 @@ function WheelColumn({
       top: index * ITEM_HEIGHT,
       behavior: "auto",
     });
-  }, [selectedValue, values]);
+  }, [selectedValue, values, circular]);
 
   useEffect(() => {
     return () => {
       if (wheelTimerRef.current !== null) {
         window.clearTimeout(wheelTimerRef.current);
       }
+
+      if (recenterTimerRef.current !== null) {
+        window.clearTimeout(recenterTimerRef.current);
+      }
     };
   }, []);
+
+  const scheduleCircularRecenter = (logicalIndex: number) => {
+    if (!circular) {
+      return;
+    }
+
+    if (recenterTimerRef.current !== null) {
+      window.clearTimeout(recenterTimerRef.current);
+    }
+
+    recenterTimerRef.current = window.setTimeout(() => {
+      if (!wheelRef.current) {
+        return;
+      }
+
+      // Move to the identical item in the middle copy.
+      // Because the visible values are identical, this reset
+      // happens without a noticeable visual jump.
+      const centeredIndex = CIRCULAR_CENTER_COPY * values.length + logicalIndex;
+
+      wheelRef.current.scrollTo({
+        top: centeredIndex * ITEM_HEIGHT,
+        behavior: "auto",
+      });
+    }, 180);
+  };
+
+  const selectIndex = (
+    rawIndex: number,
+    behavior: ScrollBehavior = "smooth",
+  ) => {
+    if (!wheelRef.current || values.length === 0) {
+      return;
+    }
+
+    const maxIndex = displayValues.length - 1;
+
+    const index = Math.max(0, Math.min(maxIndex, rawIndex));
+
+    const logicalIndex = circular
+      ? getWrappedIndex(index, values.length)
+      : index;
+
+    const value = values[logicalIndex];
+
+    if (value !== selectedValue) {
+      // Prevent the selected-value effect from interrupting
+      // the current smooth scroll animation.
+      suppressNextSyncRef.current = true;
+
+      onChange(value);
+    }
+
+    wheelRef.current.scrollTo({
+      top: index * ITEM_HEIGHT,
+      behavior,
+    });
+
+    scheduleCircularRecenter(logicalIndex);
+  };
 
   const snapToClosestItem = () => {
     if (!wheelRef.current) {
@@ -69,16 +178,7 @@ function WheelColumn({
 
     const rawIndex = Math.round(wheelRef.current.scrollTop / ITEM_HEIGHT);
 
-    const index = Math.max(0, Math.min(values.length - 1, rawIndex));
-
-    const value = values[index];
-
-    onChange(value);
-
-    wheelRef.current.scrollTo({
-      top: index * ITEM_HEIGHT,
-      behavior: "smooth",
-    });
+    selectIndex(rawIndex);
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -90,6 +190,7 @@ function WheelColumn({
     hasMovedRef.current = false;
 
     startYRef.current = event.clientY;
+
     startScrollTopRef.current = wheelRef.current.scrollTop;
 
     wheelRef.current.setPointerCapture(event.pointerId);
@@ -139,12 +240,22 @@ function WheelColumn({
       return;
     }
 
-    onChange(value);
+    const logicalIndex = circular
+      ? getWrappedIndex(index, values.length)
+      : index;
+
+    if (value !== selectedValue) {
+      suppressNextSyncRef.current = true;
+
+      onChange(value);
+    }
 
     wheelRef.current?.scrollTo({
       top: index * ITEM_HEIGHT,
       behavior: "smooth",
     });
+
+    scheduleCircularRecenter(logicalIndex);
   };
 
   return (
@@ -158,9 +269,9 @@ function WheelColumn({
       onPointerCancel={handlePointerUp}
       onWheel={handleWheel}
     >
-      {values.map((value, index) => (
+      {displayValues.map((value, index) => (
         <button
-          key={value}
+          key={`${value}-${index}`}
           type="button"
           className={`time-wheel-item ${
             selectedValue === value ? "selected" : ""
@@ -190,6 +301,7 @@ function getInitialTime(value?: string) {
   }
 
   const now = new Date();
+
   const hour24 = now.getHours();
 
   const period: Period = hour24 >= 12 ? "PM" : "AM";
@@ -217,7 +329,9 @@ function TimeWheelPicker({
   const initialTime = useMemo(() => getInitialTime(value), [value]);
 
   const [hour, setHour] = useState(initialTime.hour);
+
   const [minute, setMinute] = useState(initialTime.minute);
+
   const [period, setPeriod] = useState<Period>(initialTime.period);
 
   const hours = useMemo(
@@ -233,8 +347,6 @@ function TimeWheelPicker({
       Array.from({ length: 60 }, (_, index) => String(index).padStart(2, "0")),
     [],
   );
-
-  const periodValues: Period[] = ["AM", "PM"];
 
   const getPeriodLabel = (value: string) => {
     if (isArabic) {
@@ -261,10 +373,25 @@ function TimeWheelPicker({
   };
 
   return (
-    <div className="time-wheel-overlay" onMouseDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onClose(); }}>
+    <div
+      className="time-wheel-overlay"
+      onMouseDown={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClose();
+      }}
+    >
       <div
-        onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }}
-        className="time-wheel-picker" role="dialog" aria-modal="true" aria-label={title}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.stopPropagation();
+            onClose();
+          }
+        }}
+        className="time-wheel-picker"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="time-wheel-header">
@@ -284,7 +411,9 @@ function TimeWheelPicker({
           <>
             <div className="time-wheel-labels" dir="ltr">
               <span>{t("timeWheel.period")}</span>
+
               <span>{t("timeWheel.hour")}</span>
+
               <span>{t("timeWheel.minute")}</span>
             </div>
 
@@ -292,7 +421,7 @@ function TimeWheelPicker({
               <div className="time-wheel-selection" />
 
               <WheelColumn
-                values={periodValues}
+                values={PERIOD_VALUES}
                 selectedValue={period}
                 onChange={(newPeriod) => setPeriod(newPeriod as Period)}
                 ariaLabel={t("timeWheel.period")}
@@ -304,6 +433,7 @@ function TimeWheelPicker({
                 selectedValue={hour}
                 onChange={setHour}
                 ariaLabel={t("timeWheel.hour")}
+                circular
               />
 
               <WheelColumn
@@ -311,6 +441,7 @@ function TimeWheelPicker({
                 selectedValue={minute}
                 onChange={setMinute}
                 ariaLabel={t("timeWheel.minute")}
+                circular
               />
             </div>
           </>
@@ -318,7 +449,9 @@ function TimeWheelPicker({
           <>
             <div className="time-wheel-labels" dir="ltr">
               <span>{t("timeWheel.hour")}</span>
+
               <span>{t("timeWheel.minute")}</span>
+
               <span>{t("timeWheel.period")}</span>
             </div>
 
@@ -330,6 +463,7 @@ function TimeWheelPicker({
                 selectedValue={hour}
                 onChange={setHour}
                 ariaLabel={t("timeWheel.hour")}
+                circular
               />
 
               <WheelColumn
@@ -337,10 +471,11 @@ function TimeWheelPicker({
                 selectedValue={minute}
                 onChange={setMinute}
                 ariaLabel={t("timeWheel.minute")}
+                circular
               />
 
               <WheelColumn
-                values={periodValues}
+                values={PERIOD_VALUES}
                 selectedValue={period}
                 onChange={(newPeriod) => setPeriod(newPeriod as Period)}
                 ariaLabel={t("timeWheel.period")}
