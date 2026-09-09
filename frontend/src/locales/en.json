@@ -123,7 +123,8 @@
     "login": "Ratteb | Login",
     "register": "Ratteb | Register",
     "forgotPassword": "Ratteb | Forgot Password",
-    "resetPassword": "Ratteb | Reset Password"
+    "resetPassword": "Ratteb | Reset Password",
+    "developer": "Ratteb | Developer"
   },
   "registerVerification": {
     "title": "Check your email",
@@ -221,5 +222,16 @@
   "notificationsDisabledSuccess": "Notifications disabled successfully",
   "notificationDisableFailed": "Unable to disable notifications",
   "backToPreviousPage": "Back to previous page",
+  "contactUs": "Contact Us",
+  "phone": "Phone",
+  "developerPage": "Developer",
+  "developerName": "Khalaf Alshammari",
+  "developerRole": "Software Engineer",
+  "developerLocation": "Saudi Arabia",
+  "developerAbout": "About the Developer",
+  "developerAboutText": "Software engineer and developer of Ratteb, focused on building practical and user-friendly software solutions.",
+  "linkedin": "LinkedIn",
+  "github": "GitHub",
+  "backToAccount": "Back to Account",
   "notificationBlockedDescription": "Allow notifications in your browser settings, then try again"
 }

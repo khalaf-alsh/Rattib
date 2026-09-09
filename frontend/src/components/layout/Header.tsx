@@ -2,7 +2,9 @@ import { Moon, Sun, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
+
 import rattebIcon from "../../assets/ratteb-icon.png";
+
 import "./Header.css";
 
 type Theme = "dark" | "light";
@@ -31,12 +33,30 @@ function Header() {
   const toggleLanguage = () => {
     const newLanguage = i18n.language === "ar" ? "en" : "ar";
 
-    i18n.changeLanguage(newLanguage);
+    void i18n.changeLanguage(newLanguage);
+  };
+
+  // Save the full current app location so Account can return the user
+  // to the same Schedule tab instead of always opening Study Schedule.
+  const handleAccountClick = () => {
+    if (location.pathname === "/account") {
+      return;
+    }
+
+    navigate("/account", {
+      state: {
+        from: `${location.pathname}${location.search}${location.hash}`,
+      },
+    });
   };
 
   const getPageTitle = () => {
     if (location.pathname === "/account") {
       return t("account");
+    }
+
+    if (location.pathname === "/developer") {
+      return t("developerPage");
     }
 
     return t("schedule");
@@ -79,7 +99,7 @@ function Header() {
         <button
           type="button"
           className="header-avatar-button"
-          onClick={() => navigate("/account")}
+          onClick={handleAccountClick}
           aria-label={t("account")}
         >
           <UserRound size={22} />

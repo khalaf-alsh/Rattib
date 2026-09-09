@@ -170,6 +170,7 @@ if (!SUPABASE_SECRET_KEY) {
   throw new Error("Default Supabase secret key is missing");
 }
 
+// This privileged client is only used inside the protected reminder worker.
 const supabaseAdmin = createClient<Database>(
   SUPABASE_URL,
   SUPABASE_SECRET_KEY,
@@ -210,7 +211,9 @@ async function sendPushNotification(
       data: JSON.stringify({
         title: "Ratteb",
         body: task.title,
-        url: "/schedule",
+
+        // Reminder notifications should open the Daily Planner directly.
+        url: "/schedule?tab=daily",
       }),
 
       options: {
@@ -241,7 +244,7 @@ export default {
 
     const providedSecret = request.headers.get("x-reminder-secret");
 
-    // Protect the function because it uses privileged database access.
+    // Protect the worker because it has privileged database access.
     if (!expectedSecret || providedSecret !== expectedSecret) {
       return Response.json(
         {
@@ -259,7 +262,8 @@ export default {
       now.getTime() - REMINDER_WINDOW_MINUTES * 60 * 1000,
     );
 
-    // Only process reminders that became due recently.
+    // Only process unsent reminders that became due recently.
+    // The short window prevents very old reminders from firing unexpectedly.
     const { data: dueTasks, error: dueTasksError } = await supabaseAdmin
       .from("daily_tasks")
       .select("id,user_id,title,reminder_at")
@@ -314,6 +318,9 @@ export default {
 
       let deliveredToAtLeastOneDevice = false;
 
+      // One account may have multiple browser/device subscriptions.
+      // Try every valid subscription before deciding whether the reminder
+      // can be marked as sent.
       for (const subscription of userSubscriptions) {
         try {
           const pushResponse = await sendPushNotification(subscription, task);
@@ -359,7 +366,7 @@ export default {
         continue;
       }
 
-      // Mark the reminder as sent only after at least one push succeeds.
+      // Mark the reminder as sent only after at least one device succeeds.
       const { error: updateError } = await supabaseAdmin
         .from("daily_tasks")
         .update({

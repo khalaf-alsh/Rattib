@@ -22,6 +22,21 @@
   overflow: auto;
 }
 
+/* Account keeps its footer visible while only the settings area scrolls. */
+.app-layout:has(.account-page) {
+  height: 100dvh;
+}
+
+.app-main:has(.account-page) > .app-header {
+  flex-shrink: 0;
+}
+
+.page-content:has(.account-page) {
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+}
 @media (max-width: 700px) {
   .page-content {
     padding: 14px;
@@ -29,8 +44,12 @@
 }
 
 /* The Daily Planner owns its scroll; other pages keep their current scrolling. */
-.app-layout:has(.schedule-page--daily) { height: 100dvh; }
-.app-main:has(.schedule-page--daily) > .app-header { flex-shrink: 0; }
+.app-layout:has(.schedule-page--daily) {
+  height: 100dvh;
+}
+.app-main:has(.schedule-page--daily) > .app-header {
+  flex-shrink: 0;
+}
 .page-content:has(.schedule-page--daily) {
   display: flex;
   flex-direction: column;
@@ -38,8 +57,12 @@
 }
 
 /* Study Schedule scrolls its course content instead of the outer page. */
-.app-layout:has(.schedule-page--study) { height: 100dvh; }
-.app-main:has(.schedule-page--study) > .app-header { flex-shrink: 0; }
+.app-layout:has(.schedule-page--study) {
+  height: 100dvh;
+}
+.app-main:has(.schedule-page--study) > .app-header {
+  flex-shrink: 0;
+}
 .page-content:has(.schedule-page--study) {
   display: flex;
   flex-direction: column;

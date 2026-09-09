@@ -2,7 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import AppLayout from "./components/layout/AppLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
-
+import DeveloperPage from "./pages/Developer/DeveloperPage";
 import SchedulePage from "./pages/Schedule/SchedulePage";
 import AccountPage from "./pages/Account/AccountPage";
 import LoginPage from "./pages/Login/LoginPage";
@@ -23,6 +23,7 @@ function App() {
         <Route element={<AppLayout />}>
           <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/account" element={<AccountPage />} />
+          <Route path="/developer" element={<DeveloperPage />} />
         </Route>
       </Route>
 

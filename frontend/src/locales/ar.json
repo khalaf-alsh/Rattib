@@ -123,7 +123,8 @@
     "login": "رتّب | تسجيل الدخول",
     "register": "رتّب | إنشاء حساب",
     "forgotPassword": "رتّب | استعادة كلمة المرور",
-    "resetPassword": "رتّب | تعيين كلمة مرور جديدة"
+    "resetPassword": "رتّب | تعيين كلمة مرور جديدة",
+    "developer": "رتّب | المطور"
   },
   "registerVerification": {
     "title": "تحقق من بريدك الإلكتروني",
@@ -221,5 +222,16 @@
   "disablingNotifications": "جارٍ الإيقاف...",
   "notificationsDisabledSuccess": "تم إيقاف الإشعارات",
   "backToPreviousPage": "الرجوع إلى الصفحة السابقة",
+  "contactUs": "تواصل معنا",
+  "phone": "الجوال",
+  "developerPage": "صفحة المطور",
+  "developerName": "خلف الشمري",
+  "developerRole": "مهندس برمجيات",
+  "developerLocation": "المملكة العربية السعودية",
+  "developerAbout": "عن المطور",
+  "developerAboutText": "مهندس برمجيات ومطور رتّب، مهتم ببناء حلول برمجية عملية وسهلة الاستخدام.",
+  "linkedin": "لينكدإن",
+  "github": "GitHub",
+  "backToAccount": "العودة إلى الحساب",
   "notificationDisableFailed": "تعذر إيقاف الإشعارات"
 }

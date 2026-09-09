@@ -1,8 +1,9 @@
 self.addEventListener("push", (event) => {
+  // Use safe defaults in case a push arrives without a complete JSON payload.
   let data = {
     title: "Ratteb",
     body: "You have a reminder.",
-    url: "/schedule",
+    url: "/schedule?tab=daily",
   };
 
   if (event.data) {
@@ -31,8 +32,9 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const url = event.notification.data?.url || "/schedule";
+  const url = event.notification.data?.url || "/schedule?tab=daily";
 
+  // Reuse an existing Ratteb window when possible. Otherwise open a new one.
   event.waitUntil(
     clients
       .matchAll({

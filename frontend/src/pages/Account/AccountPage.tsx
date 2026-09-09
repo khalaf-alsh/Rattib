@@ -1,29 +1,37 @@
 import {
   ArrowLeft,
   ArrowRight,
+  Bell,
   LockKeyhole,
   LogOut,
   Mail,
   UserRound,
-  Bell,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { useLocation, useNavigate } from "react-router-dom";
+import AccountFooter from "../../components/account/AccountFooter";
 import Toast from "../../components/ui/Toast";
-import "./AccountPage.css";
+import { useAuth } from "../../context/AuthContext";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import {
+  disablePushNotifications,
   enablePushNotifications,
   getPushNotificationStatus,
-  disablePushNotifications,
   type PushNotificationStatus,
 } from "../../services/pushSubscriptionService";
 
+import "./AccountPage.css";
+
+type AccountLocationState = {
+  from?: string;
+};
+
 function AccountPage() {
   const { t, i18n } = useTranslation();
+
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { user, updateEmail, updatePassword, signOut } = useAuth();
 
@@ -43,15 +51,29 @@ function AccountPage() {
     useState<PushNotificationStatus>("disabled");
 
   const [checkingNotifications, setCheckingNotifications] = useState(true);
-
   const [enablingNotifications, setEnablingNotifications] = useState(false);
-
   const [disablingNotifications, setDisablingNotifications] = useState(false);
 
   const [notificationError, setNotificationError] = useState("");
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   usePageTitle("pageTitles.account");
+
+  const previousPage = (location.state as AccountLocationState | null)?.from;
+
+  // Return to the exact page and schedule tab the user came from.
+  // Direct visits to Account safely fall back to the Study Schedule.
+  const handleBack = () => {
+    const target =
+      previousPage?.startsWith("/") && !previousPage.startsWith("/account")
+        ? previousPage
+        : "/schedule?tab=study";
+
+    navigate(target, {
+      replace: true,
+    });
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -77,6 +99,7 @@ function AccountPage() {
       mounted = false;
     };
   }, []);
+
   useEffect(() => {
     if (!toastMessage) {
       return;
@@ -159,6 +182,8 @@ function AccountPage() {
     setEnablingNotifications(true);
 
     try {
+      // The service handles browser permission, Service Worker registration,
+      // subscription creation, and backend persistence.
       await enablePushNotifications();
 
       setNotificationStatus("enabled");
@@ -183,6 +208,8 @@ function AccountPage() {
     setDisablingNotifications(true);
 
     try {
+      // The service removes the stored backend subscription and then
+      // unsubscribes the current browser from Web Push.
       await disablePushNotifications();
 
       setNotificationStatus("disabled");
@@ -206,217 +233,231 @@ function AccountPage() {
 
   return (
     <div className="account-page">
-      <Link className="account-back-link" to="/schedule">
-        {i18n.dir() === "rtl" ? (
-          <ArrowRight size={20} />
-        ) : (
-          <ArrowLeft size={20} />
-        )}
-        {t("backToSchedule")}
-      </Link>
-      <section className="profile-header">
-        <div className="profile-avatar">
-          <UserRound size={38} />
-        </div>
-
-        <div>
-          <h2>{t("profile")}</h2>
-          <p>{user?.email}</p>
-        </div>
-      </section>
-
-      <div className="account-sections">
-        <section className="account-card">
-          <div className="account-card-heading">
-            <div className="account-card-icon">
-              <Mail size={20} />
-            </div>
-
-            <div>
-              <h3>{t("changeEmail")}</h3>
-              <p>{t("changeEmailDescription")}</p>
-            </div>
-          </div>
-
-          <form className="account-form" onSubmit={handleEmailSubmit}>
-            <div className="account-field">
-              <label htmlFor="account-email">{t("email")}</label>
-
-              <input
-                id="account-email"
-                type="email"
-                value={email}
-                autoComplete="email"
-                onChange={(event) => {
-                  setEmail(event.target.value);
-                  setEmailError("");
-                }}
-              />
-
-              {emailError && (
-                <span className="account-error">{emailError}</span>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              className="account-primary-button"
-              disabled={updatingEmail}
-            >
-              {updatingEmail ? t("loading") : t("updateEmail")}
-            </button>
-          </form>
-        </section>
-
-        <section className="account-card">
-          <div className="account-card-heading">
-            <div className="account-card-icon">
-              <LockKeyhole size={20} />
-            </div>
-
-            <div>
-              <h3>{t("changePassword")}</h3>
-              <p>{t("changePasswordDescription")}</p>
-            </div>
-          </div>
-
-          <form className="account-form" onSubmit={handlePasswordSubmit}>
-            <div className="account-field">
-              <label htmlFor="new-password">{t("newPassword")}</label>
-
-              <input
-                id="new-password"
-                type="password"
-                value={newPassword}
-                autoComplete="new-password"
-                onChange={(event) => {
-                  setNewPassword(event.target.value);
-                  setPasswordError("");
-                }}
-              />
-            </div>
-
-            <div className="account-field">
-              <label htmlFor="confirm-new-password">
-                {t("confirmPassword")}
-              </label>
-
-              <input
-                id="confirm-new-password"
-                type="password"
-                value={confirmPassword}
-                autoComplete="new-password"
-                onChange={(event) => {
-                  setConfirmPassword(event.target.value);
-                  setPasswordError("");
-                }}
-              />
-
-              {passwordError && (
-                <span className="account-error">{passwordError}</span>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              className="account-primary-button"
-              disabled={updatingPassword}
-            >
-              {updatingPassword ? t("loading") : t("updatePassword")}
-            </button>
-          </form>
-        </section>
-
-        <section className="account-card">
-          <div className="account-card-heading">
-            <div className="account-card-icon">
-              <Bell size={20} />
-            </div>
-
-            <div>
-              <h3>{t("notifications")}</h3>
-              <p>{t("notificationsDescription")}</p>
-            </div>
-          </div>
-
-          <div className="notification-settings">
-            <div className="notification-status-row">
-              <span>{t("notificationStatus")}</span>
-
-              <strong>
-                {checkingNotifications
-                  ? t("loading")
-                  : notificationStatus === "enabled"
-                    ? t("notificationEnabled")
-                    : notificationStatus === "blocked"
-                      ? t("notificationBlocked")
-                      : notificationStatus === "unsupported"
-                        ? t("notificationUnsupported")
-                        : t("notificationDisabled")}
-              </strong>
-            </div>
-
-            {notificationError && (
-              <span className="account-error">{notificationError}</span>
-            )}
-
-            {!checkingNotifications && notificationStatus === "disabled" && (
-              <button
-                type="button"
-                className="account-primary-button"
-                disabled={enablingNotifications}
-                onClick={handleEnableNotifications}
-              >
-                {enablingNotifications
-                  ? t("enablingNotifications")
-                  : t("enableNotifications")}
-              </button>
-            )}
-            {!checkingNotifications && notificationStatus === "enabled" && (
-              <button
-                type="button"
-                className="notification-disable-button"
-                disabled={disablingNotifications}
-                onClick={handleDisableNotifications}
-              >
-                {disablingNotifications
-                  ? t("disablingNotifications")
-                  : t("disableNotifications")}
-              </button>
-            )}
-
-            {notificationStatus === "blocked" && (
-              <p className="notification-help">
-                {t("notificationBlockedDescription")}
-              </p>
-            )}
-          </div>
-        </section>
-
-        <section className="account-card danger-card">
-          <div className="account-card-heading">
-            <div className="account-card-icon danger-icon">
-              <LogOut size={20} />
-            </div>
-
-            <div>
-              <h3>{t("logout")}</h3>
-              <p>{t("logoutDescription")}</p>
-            </div>
-          </div>
-
+      <div className="account-scroll-content">
+        <div className="account-page-heading">
           <button
             type="button"
-            className="logout-button"
-            disabled={loggingOut}
-            onClick={handleLogout}
+            className="account-back-button"
+            onClick={handleBack}
+            aria-label={t("backToPreviousPage")}
           >
-            <LogOut size={18} />
-
-            {loggingOut ? t("loading") : t("logout")}
+            {i18n.dir() === "rtl" ? (
+              <ArrowRight size={22} />
+            ) : (
+              <ArrowLeft size={22} />
+            )}
           </button>
+
+          <h2>{t("account")}</h2>
+        </div>
+
+        <section className="profile-header">
+          <div className="profile-avatar">
+            <UserRound size={38} />
+          </div>
+
+          <div>
+            <h2>{t("profile")}</h2>
+            <p>{user?.email}</p>
+          </div>
         </section>
+
+        <div className="account-sections">
+          <section className="account-card">
+            <div className="account-card-heading">
+              <div className="account-card-icon">
+                <Mail size={20} />
+              </div>
+
+              <div>
+                <h3>{t("changeEmail")}</h3>
+                <p>{t("changeEmailDescription")}</p>
+              </div>
+            </div>
+
+            <form className="account-form" onSubmit={handleEmailSubmit}>
+              <div className="account-field">
+                <label htmlFor="account-email">{t("email")}</label>
+
+                <input
+                  id="account-email"
+                  type="email"
+                  value={email}
+                  autoComplete="email"
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    setEmailError("");
+                  }}
+                />
+
+                {emailError && (
+                  <span className="account-error">{emailError}</span>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                className="account-primary-button"
+                disabled={updatingEmail}
+              >
+                {updatingEmail ? t("loading") : t("updateEmail")}
+              </button>
+            </form>
+          </section>
+
+          <section className="account-card">
+            <div className="account-card-heading">
+              <div className="account-card-icon">
+                <LockKeyhole size={20} />
+              </div>
+
+              <div>
+                <h3>{t("changePassword")}</h3>
+                <p>{t("changePasswordDescription")}</p>
+              </div>
+            </div>
+
+            <form className="account-form" onSubmit={handlePasswordSubmit}>
+              <div className="account-field">
+                <label htmlFor="new-password">{t("newPassword")}</label>
+
+                <input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  autoComplete="new-password"
+                  onChange={(event) => {
+                    setNewPassword(event.target.value);
+                    setPasswordError("");
+                  }}
+                />
+              </div>
+
+              <div className="account-field">
+                <label htmlFor="confirm-new-password">
+                  {t("confirmPassword")}
+                </label>
+
+                <input
+                  id="confirm-new-password"
+                  type="password"
+                  value={confirmPassword}
+                  autoComplete="new-password"
+                  onChange={(event) => {
+                    setConfirmPassword(event.target.value);
+                    setPasswordError("");
+                  }}
+                />
+
+                {passwordError && (
+                  <span className="account-error">{passwordError}</span>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                className="account-primary-button"
+                disabled={updatingPassword}
+              >
+                {updatingPassword ? t("loading") : t("updatePassword")}
+              </button>
+            </form>
+          </section>
+
+          <section className="account-card">
+            <div className="account-card-heading">
+              <div className="account-card-icon">
+                <Bell size={20} />
+              </div>
+
+              <div>
+                <h3>{t("notifications")}</h3>
+                <p>{t("notificationsDescription")}</p>
+              </div>
+            </div>
+
+            <div className="notification-settings">
+              <div className="notification-status-row">
+                <span>{t("notificationStatus")}</span>
+
+                <strong>
+                  {checkingNotifications
+                    ? t("loading")
+                    : notificationStatus === "enabled"
+                      ? t("notificationEnabled")
+                      : notificationStatus === "blocked"
+                        ? t("notificationBlocked")
+                        : notificationStatus === "unsupported"
+                          ? t("notificationUnsupported")
+                          : t("notificationDisabled")}
+                </strong>
+              </div>
+
+              {notificationError && (
+                <span className="account-error">{notificationError}</span>
+              )}
+
+              {!checkingNotifications && notificationStatus === "disabled" && (
+                <button
+                  type="button"
+                  className="account-primary-button"
+                  disabled={enablingNotifications}
+                  onClick={handleEnableNotifications}
+                >
+                  {enablingNotifications
+                    ? t("enablingNotifications")
+                    : t("enableNotifications")}
+                </button>
+              )}
+
+              {!checkingNotifications && notificationStatus === "enabled" && (
+                <button
+                  type="button"
+                  className="notification-disable-button"
+                  disabled={disablingNotifications}
+                  onClick={handleDisableNotifications}
+                >
+                  {disablingNotifications
+                    ? t("disablingNotifications")
+                    : t("disableNotifications")}
+                </button>
+              )}
+
+              {notificationStatus === "blocked" && (
+                <p className="notification-help">
+                  {t("notificationBlockedDescription")}
+                </p>
+              )}
+            </div>
+          </section>
+
+          <section className="account-card danger-card">
+            <div className="account-card-heading">
+              <div className="account-card-icon danger-icon">
+                <LogOut size={20} />
+              </div>
+
+              <div>
+                <h3>{t("logout")}</h3>
+                <p>{t("logoutDescription")}</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="logout-button"
+              disabled={loggingOut}
+              onClick={handleLogout}
+            >
+              <LogOut size={18} />
+
+              {loggingOut ? t("loading") : t("logout")}
+            </button>
+          </section>
+        </div>
       </div>
+
+      <AccountFooter />
 
       {toastMessage && (
         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
