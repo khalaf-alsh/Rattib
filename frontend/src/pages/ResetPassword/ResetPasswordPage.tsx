@@ -1,10 +1,16 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+
+import PasswordRequirements from "../../components/auth/PasswordRequirements";
 import { useAuth } from "../../context/AuthContext";
-import rattebIcon from "../../assets/ratteb-icon.png";
-import "./ResetPasswordPage.css";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { isPasswordValid } from "../../lib/passwordPolicy";
+
+import rattebIcon from "../../assets/ratteb-icon.png";
+
+import "./ResetPasswordPage.css";
+
 function ResetPasswordPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -24,8 +30,9 @@ function ResetPasswordPage() {
 
     setError("");
 
-    if (password.length < 6) {
-      setError(t("passwordTooShort"));
+    // Prevent password reset until every password requirement is met.
+    if (!isPasswordValid(password)) {
+      setError(t("passwordRules.invalid"));
       return;
     }
 
@@ -105,11 +112,14 @@ function ResetPasswordPage() {
               value={password}
               autoComplete="new-password"
               required
+              aria-describedby="password-requirements"
               onChange={(event) => {
                 setPassword(event.target.value);
                 setError("");
               }}
             />
+
+            <PasswordRequirements password={password} />
           </div>
 
           <div className="auth-field">
@@ -130,7 +140,11 @@ function ResetPasswordPage() {
             />
           </div>
 
-          {error && <p className="auth-error">{error}</p>}
+          {error && (
+            <p className="auth-error" role="alert">
+              {error}
+            </p>
+          )}
 
           <button type="submit" className="auth-submit" disabled={submitting}>
             {submitting ? t("loading") : t("saveNewPassword")}

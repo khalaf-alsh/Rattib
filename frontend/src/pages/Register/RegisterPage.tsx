@@ -1,20 +1,29 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+
+import PasswordRequirements from "../../components/auth/PasswordRequirements";
 import { useAuth } from "../../context/AuthContext";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { isPasswordValid } from "../../lib/passwordPolicy";
+
 import rattebIcon from "../../assets/ratteb-icon.png";
+
 import "./RegisterPage.css";
 
 function RegisterPage() {
   const { t } = useTranslation();
+
   const { user, signUp } = useAuth();
+
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
   const [registeredEmail, setRegisteredEmail] = useState("");
+
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -29,19 +38,21 @@ function RegisterPage() {
 
     setError("");
 
-    if (password !== confirmPassword) {
-      setError("passwordsDoNotMatch");
+    // Prevent account creation until every password requirement is met.
+    if (!isPasswordValid(password)) {
+      setError("passwordRules.invalid");
       return;
     }
 
-    if (password.length < 6) {
-      setError("passwordTooShort");
+    if (password !== confirmPassword) {
+      setError("passwordsDoNotMatch");
       return;
     }
 
     setSubmitting(true);
 
     const trimmedEmail = email.trim();
+
     const authError = await signUp(trimmedEmail, password);
 
     setSubmitting(false);
@@ -108,7 +119,10 @@ function RegisterPage() {
               value={email}
               autoComplete="email"
               required
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setError("");
+              }}
             />
           </div>
 
@@ -121,8 +135,14 @@ function RegisterPage() {
               value={password}
               autoComplete="new-password"
               required
-              onChange={(event) => setPassword(event.target.value)}
+              aria-describedby="password-requirements"
+              onChange={(event) => {
+                setPassword(event.target.value);
+                setError("");
+              }}
             />
+
+            <PasswordRequirements password={password} />
           </div>
 
           <div className="auth-field">
@@ -134,11 +154,18 @@ function RegisterPage() {
               value={confirmPassword}
               autoComplete="new-password"
               required
-              onChange={(event) => setConfirmPassword(event.target.value)}
+              onChange={(event) => {
+                setConfirmPassword(event.target.value);
+                setError("");
+              }}
             />
           </div>
 
-          {error && <p className="auth-error" role="alert">{t(error)}</p>}
+          {error && (
+            <p className="auth-error" role="alert">
+              {t(error)}
+            </p>
+          )}
 
           <button type="submit" className="auth-submit" disabled={submitting}>
             {submitting ? t("loading") : t("createAccount")}

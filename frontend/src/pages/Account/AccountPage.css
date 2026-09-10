@@ -346,6 +346,52 @@
   cursor: not-allowed;
 }
 
+.delete-account-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  min-width: 140px;
+  min-height: 42px;
+
+  padding: 0 16px;
+
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+
+  color: #ffffff;
+  background-color: var(--danger);
+
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.delete-account-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.account-scroll-content {
+  flex: 1;
+
+  min-height: 0;
+
+  padding-bottom: 24px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.account-scroll-content::-webkit-scrollbar {
+  display: none;
+}
+
 @media (max-width: 700px) {
   .account-page {
     width: 100%;
@@ -376,6 +422,11 @@
   }
 
   .notification-disable-button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .delete-account-button {
     width: 100%;
     min-height: 44px;
   }

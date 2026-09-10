@@ -233,5 +233,23 @@
   "linkedin": "LinkedIn",
   "github": "GitHub",
   "backToAccount": "Back to Account",
-  "notificationBlockedDescription": "Allow notifications in your browser settings, then try again"
+  "notificationBlockedDescription": "Allow notifications in your browser settings, then try again",
+  "deleteAccount": {
+    "title": "Delete Account",
+    "description": "Permanently delete your account and all associated data",
+    "button": "Delete Account",
+    "message": "Your account and all associated schedules, tasks, notes, and reminders will be permanently deleted. This action cannot be undone.",
+    "confirm": "Delete Permanently",
+    "deleting": "Deleting account...",
+    "error": "Unable to delete your account. Please try again."
+  },
+  "passwordRules": {
+    "title": "Password must contain:",
+    "minLength": "At least 8 characters",
+    "uppercase": "At least one uppercase letter",
+    "lowercase": "At least one lowercase letter",
+    "number": "At least one number",
+    "special": "At least one special character such as @ or $",
+    "invalid": "Please meet all password requirements"
+  }
 }

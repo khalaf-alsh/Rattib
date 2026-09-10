@@ -5,15 +5,23 @@ import {
   LockKeyhole,
   LogOut,
   Mail,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
+
 import AccountFooter from "../../components/account/AccountFooter";
+import DeleteAccountModal from "../../components/account/DeleteAccountModal";
+import PasswordRequirements from "../../components/auth/PasswordRequirements";
 import Toast from "../../components/ui/Toast";
+
 import { useAuth } from "../../context/AuthContext";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { isPasswordValid } from "../../lib/passwordPolicy";
+
+import { deleteAccount } from "../../services/accountService";
 import {
   disablePushNotifications,
   enablePushNotifications,
@@ -51,10 +59,18 @@ function AccountPage() {
     useState<PushNotificationStatus>("disabled");
 
   const [checkingNotifications, setCheckingNotifications] = useState(true);
+
   const [enablingNotifications, setEnablingNotifications] = useState(false);
+
   const [disablingNotifications, setDisablingNotifications] = useState(false);
 
   const [notificationError, setNotificationError] = useState("");
+
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  const [deleteAccountError, setDeleteAccountError] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -150,8 +166,9 @@ function AccountPage() {
 
     setPasswordError("");
 
-    if (newPassword.length < 6) {
-      setPasswordError(t("passwordTooShort"));
+    // Prevent password updates until every password requirement is met.
+    if (!isPasswordValid(newPassword)) {
+      setPasswordError(t("passwordRules.invalid"));
       return;
     }
 
@@ -218,6 +235,32 @@ function AccountPage() {
       setNotificationError(t("notificationDisableFailed"));
     } finally {
       setDisablingNotifications(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deletingAccount) {
+      return;
+    }
+
+    setDeletingAccount(true);
+    setDeleteAccountError(false);
+
+    try {
+      // The backend permanently deletes the Auth user.
+      // Database CASCADE rules remove all associated Ratteb data.
+      await deleteAccount();
+
+      // Clear the local Supabase session after the server confirms deletion.
+      await signOut();
+
+      navigate("/login", {
+        replace: true,
+      });
+    } catch {
+      setDeleteAccountError(true);
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -326,11 +369,14 @@ function AccountPage() {
                   type="password"
                   value={newPassword}
                   autoComplete="new-password"
+                  aria-describedby="password-requirements"
                   onChange={(event) => {
                     setNewPassword(event.target.value);
                     setPasswordError("");
                   }}
                 />
+
+                <PasswordRequirements password={newPassword} />
               </div>
 
               <div className="account-field">
@@ -434,6 +480,32 @@ function AccountPage() {
           <section className="account-card danger-card">
             <div className="account-card-heading">
               <div className="account-card-icon danger-icon">
+                <Trash2 size={20} />
+              </div>
+
+              <div>
+                <h3>{t("deleteAccount.title")}</h3>
+                <p>{t("deleteAccount.description")}</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="delete-account-button"
+              onClick={() => {
+                setDeleteAccountError(false);
+                setDeleteAccountOpen(true);
+              }}
+            >
+              <Trash2 size={18} />
+
+              {t("deleteAccount.button")}
+            </button>
+          </section>
+
+          <section className="account-card danger-card">
+            <div className="account-card-heading">
+              <div className="account-card-icon danger-icon">
                 <LogOut size={20} />
               </div>
 
@@ -458,6 +530,19 @@ function AccountPage() {
       </div>
 
       <AccountFooter />
+
+      {deleteAccountOpen && (
+        <DeleteAccountModal
+          deleting={deletingAccount}
+          error={deleteAccountError}
+          onConfirm={handleDeleteAccount}
+          onClose={() => {
+            if (!deletingAccount) {
+              setDeleteAccountOpen(false);
+            }
+          }}
+        />
+      )}
 
       {toastMessage && (
         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
