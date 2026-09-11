@@ -9,6 +9,8 @@ import type { User } from "@supabase/supabase-js";
 import { authErrorKey } from "../lib/authErrors";
 import { supabase } from "../lib/supabaseClient";
 
+import { PRIVACY_VERSION, TERMS_VERSION } from "../lib/legalVersions";
+
 type AuthContextType = {
   user: User | null;
   loading: boolean;
@@ -56,7 +58,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       return error ? authErrorKey(error, "loginFailed") : null;
     } catch (error) {
       return authErrorKey(error, "loginFailed");
@@ -65,7 +70,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signUp = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const acceptedAt = new Date().toISOString();
+
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            terms_accepted_at: acceptedAt,
+            terms_version: TERMS_VERSION,
+
+            privacy_acknowledged_at: acceptedAt,
+            privacy_version: PRIVACY_VERSION,
+
+            age_confirmed_18_plus: true,
+          },
+        },
+      });
+
       return error ? authErrorKey(error, "registrationFailed") : null;
     } catch (error) {
       return authErrorKey(error, "registrationFailed");

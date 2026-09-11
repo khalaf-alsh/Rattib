@@ -164,6 +164,48 @@
   text-decoration: underline;
 }
 
+.terms-acceptance {
+  margin-top: -2px;
+}
+
+.terms-acceptance label {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 9px;
+
+  color: var(--text-secondary);
+
+  font-size: 12px;
+  line-height: 1.6;
+
+  cursor: pointer;
+}
+
+.terms-acceptance input {
+  width: 17px;
+  height: 17px;
+
+  flex-shrink: 0;
+
+  margin-top: 2px;
+
+  accent-color: var(--accent);
+
+  cursor: pointer;
+}
+
+.terms-acceptance a {
+  color: var(--accent);
+
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.terms-acceptance a:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 700px) {
   .auth-page {
     align-items: stretch;

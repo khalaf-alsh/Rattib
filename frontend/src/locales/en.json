@@ -251,5 +251,26 @@
     "number": "At least one number",
     "special": "At least one special character such as @ or $",
     "invalid": "Please meet all password requirements"
+  },
+  "legalLinks": {
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Use",
+    "contact": "Contact Us"
+  },
+  "termsAcceptance": {
+    "age": "I confirm that I am 18 years of age or older,",
+    "agree": "I agree to the",
+    "andRead": "and acknowledge the",
+    "required": "You must accept the Terms of Use and acknowledge the Privacy Policy to continue"
+  },
+  "legalAcceptance": {
+    "title": "Updated Terms",
+    "description": "Before continuing to use Ratteb, please review and accept the current Terms of Use and Privacy Policy.",
+    "continue": "Accept and Continue",
+    "error": "Unable to save your acceptance. Please try again."
+  },
+  "authControls": {
+    "changeLanguage": "Change language",
+    "changeTheme": "Change theme"
   }
 }

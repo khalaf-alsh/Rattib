@@ -2,7 +2,9 @@ import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
+import AuthFooter from "../../components/auth/AuthFooter";
 import PasswordRequirements from "../../components/auth/PasswordRequirements";
+import AuthPageControls from "../../components/auth/AuthPageControls";
 import { useAuth } from "../../context/AuthContext";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { isPasswordValid } from "../../lib/passwordPolicy";
@@ -22,6 +24,8 @@ function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
   const [registeredEmail, setRegisteredEmail] = useState("");
 
   const [error, setError] = useState("");
@@ -38,7 +42,13 @@ function RegisterPage() {
 
     setError("");
 
-    // Prevent account creation until every password requirement is met.
+    // Account creation is blocked until the user explicitly confirms
+    // the age requirement and accepts the legal documents.
+    if (!acceptedTerms) {
+      setError("termsAcceptance.required");
+      return;
+    }
+
     if (!isPasswordValid(password)) {
       setError("passwordRules.invalid");
       return;
@@ -69,6 +79,7 @@ function RegisterPage() {
     return (
       <main className="auth-page">
         <div className="auth-card">
+          <AuthPageControls />
           <div className="auth-brand">
             <img src={rattebIcon} alt="" />
             <h1>{t("appName")}</h1>
@@ -91,6 +102,8 @@ function RegisterPage() {
           >
             {t("registerVerification.login")}
           </button>
+
+          <AuthFooter />
         </div>
       </main>
     );
@@ -99,6 +112,7 @@ function RegisterPage() {
   return (
     <main className="auth-page">
       <div className="auth-card">
+        <AuthPageControls />
         <div className="auth-brand">
           <img src={rattebIcon} alt="" />
           <h1>{t("appName")}</h1>
@@ -161,6 +175,30 @@ function RegisterPage() {
             />
           </div>
 
+          <div className="terms-acceptance">
+            <label>
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(event) => {
+                  setAcceptedTerms(event.target.checked);
+                  setError("");
+                }}
+              />
+
+              <span>
+                {t("termsAcceptance.age")} {t("termsAcceptance.agree")}{" "}
+                <Link to="/terms" target="_blank" rel="noreferrer">
+                  {t("legalLinks.terms")}
+                </Link>{" "}
+                {t("termsAcceptance.andRead")}{" "}
+                <Link to="/privacy" target="_blank" rel="noreferrer">
+                  {t("legalLinks.privacy")}
+                </Link>
+              </span>
+            </label>
+          </div>
+
           {error && (
             <p className="auth-error" role="alert">
               {t(error)}
@@ -175,6 +213,8 @@ function RegisterPage() {
         <p className="auth-switch">
           {t("alreadyHaveAccount")} <Link to="/login">{t("login")}</Link>
         </p>
+
+        <AuthFooter />
       </div>
     </main>
   );

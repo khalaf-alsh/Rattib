@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import rattebIcon from "../../assets/ratteb-icon.png";
 import "./ForgotPasswordPage.css";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import AuthPageControls from "../../components/auth/AuthPageControls";
 function ForgotPasswordPage() {
   const { t } = useTranslation();
   const { resetPassword } = useAuth();
@@ -36,6 +37,7 @@ function ForgotPasswordPage() {
   return (
     <main className="auth-page">
       <div className="auth-card">
+        <AuthPageControls />
         <div className="auth-brand">
           <img src={rattebIcon} alt="" />
           <h1>{t("appName")}</h1>

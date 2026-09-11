@@ -6,7 +6,7 @@ import PasswordRequirements from "../../components/auth/PasswordRequirements";
 import { useAuth } from "../../context/AuthContext";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { isPasswordValid } from "../../lib/passwordPolicy";
-
+import AuthPageControls from "../../components/auth/AuthPageControls";
 import rattebIcon from "../../assets/ratteb-icon.png";
 
 import "./ResetPasswordPage.css";
@@ -69,6 +69,7 @@ function ResetPasswordPage() {
     return (
       <main className="auth-page">
         <div className="auth-card">
+          <AuthPageControls />
           <div className="auth-brand">
             <img src={rattebIcon} alt="" />
             <h1>{t("appName")}</h1>
@@ -91,6 +92,7 @@ function ResetPasswordPage() {
   return (
     <main className="auth-page">
       <div className="auth-card">
+        <AuthPageControls />
         <div className="auth-brand">
           <img src={rattebIcon} alt="" />
           <h1>{t("appName")}</h1>

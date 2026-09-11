@@ -6,6 +6,8 @@ import { useAuth } from "../../context/AuthContext";
 import rattebIcon from "../../assets/ratteb-icon.png";
 import "./LoginPage.css";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import AuthFooter from "../../components/auth/AuthFooter";
+import AuthPageControls from "../../components/auth/AuthPageControls";
 
 function LoginPage() {
   const { t } = useTranslation();
@@ -43,6 +45,7 @@ function LoginPage() {
   return (
     <main className="auth-page">
       <div className="auth-card">
+        <AuthPageControls />
         <div className="auth-brand">
           <img src={rattebIcon} alt="" />
           <h1>{t("appName")}</h1>
@@ -97,7 +100,11 @@ function LoginPage() {
             <Link to="/forgot-password">{t("forgotPassword")}</Link>
           </div>
 
-          {error && <p className="auth-error" role="alert">{t(error)}</p>}
+          {error && (
+            <p className="auth-error" role="alert">
+              {t(error)}
+            </p>
+          )}
 
           <button type="submit" className="auth-submit" disabled={submitting}>
             {submitting ? t("loading") : t("login")}
@@ -107,6 +114,7 @@ function LoginPage() {
         <p className="auth-switch">
           {t("noAccount")} <Link to="/register">{t("createAccount")}</Link>
         </p>
+        <AuthFooter />
       </div>
     </main>
   );
