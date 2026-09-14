@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date as DateType, timedelta
 from uuid import uuid4
 from typing import Literal
 import httpx
@@ -230,6 +230,7 @@ async def create_daily_task(
 async def update_daily_task(
     task_id: int,
     task: DailyTaskInput,
+    scope: Literal["single", "series"] = "single",
     auth=Depends(get_authenticated_user),
 ):
     access_token, _ = auth
@@ -240,14 +241,6 @@ async def update_daily_task(
         "Content-Type": "application/json",
         "Prefer": "return=representation",
     }
-
-    try:
-        reminder_at = calculate_reminder_at(task)
-    except ValueError as error:
-        raise HTTPException(
-            status_code=422,
-            detail=str(error),
-        )
 
     new_start_time = (
         task.startTime.isoformat(timespec="minutes")
@@ -268,13 +261,16 @@ async def update_daily_task(
     )
 
     async with httpx.AsyncClient() as client:
-        # Load the existing reminder schedule before updating the task.
+        # Load the selected occurrence first so we can determine
+        # whether it belongs to a recurring series.
         existing_response = await client.get(
             f"{SUPABASE_URL}/rest/v1/daily_tasks",
             headers=headers,
             params={
                 "id": f"eq.{task_id}",
                 "select": (
+                    "id,"
+                    "series_id,"
                     "task_date,"
                     "start_time,"
                     "reminder,"
@@ -298,20 +294,160 @@ async def update_daily_task(
                 detail="Daily task not found",
             )
 
-        existing_task = existing_rows[0]
+        selected_task = existing_rows[0]
+        series_id = selected_task.get("series_id")
 
-        # Reset reminder_sent_at only when the reminder schedule changes.
+        # Update the whole series while preserving each occurrence's
+        # own date, completion status, ID, and series metadata.
+        if scope == "series" and series_id:
+            series_response = await client.get(
+                f"{SUPABASE_URL}/rest/v1/daily_tasks",
+                headers=headers,
+                params={
+                    "series_id": f"eq.{series_id}",
+                    "select": (
+                        "id,"
+                        "task_date,"
+                        "start_time,"
+                        "reminder,"
+                        "reminder_time,"
+                        "time_zone"
+                    ),
+                    "order": "task_date.asc",
+                },
+            )
+
+            if series_response.status_code >= 400:
+                raise HTTPException(
+                    status_code=series_response.status_code,
+                    detail="Failed to load daily task series",
+                )
+
+            series_rows = series_response.json()
+
+            if not series_rows:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Daily task series not found",
+                )
+
+            updated_selected_task = None
+
+            for existing_task in series_rows:
+                reminder_schedule_changed = any(
+                    [
+                        normalize_db_time(
+                            existing_task["start_time"]
+                        )
+                        != new_start_time,
+                        existing_task["reminder"]
+                        != task.reminder,
+                        normalize_db_time(
+                            existing_task["reminder_time"]
+                        )
+                        != new_reminder_time,
+                        existing_task["time_zone"]
+                        != task.timeZone,
+                    ]
+                )
+
+                task_data = {
+                    "title": task.title,
+                    "start_time": new_start_time,
+                    "end_time": new_end_time,
+                    "notes": task.notes,
+                    "reminder": task.reminder,
+                    "reminder_time": new_reminder_time,
+                    "time_zone": task.timeZone,
+                }
+
+                if reminder_schedule_changed:
+                    # Each occurrence needs its own reminder timestamp
+                    # because every row has a different task date.
+                    occurrence_task = task.model_copy(
+                        update={
+                            "date": DateType.fromisoformat(
+                                existing_task["task_date"]
+                            ),
+                        }
+                    )
+
+                    try:
+                        reminder_at = calculate_reminder_at(
+                            occurrence_task
+                        )
+                    except ValueError as error:
+                        # Past occurrences should not receive a new
+                        # reminder when the whole series is edited.
+                        if (
+                            str(error)
+                            == "Reminder time must be in the future"
+                        ):
+                            reminder_at = None
+                        else:
+                            raise HTTPException(
+                                status_code=422,
+                                detail=str(error),
+                            )
+
+                    task_data["reminder_at"] = (
+                        reminder_at.isoformat()
+                        if reminder_at
+                        else None
+                    )
+
+                    task_data["reminder_sent_at"] = None
+
+                response = await client.patch(
+                    f"{SUPABASE_URL}/rest/v1/daily_tasks",
+                    headers=headers,
+                    params={
+                        "id": f"eq.{existing_task['id']}",
+                    },
+                    json=task_data,
+                )
+
+                if response.status_code >= 400:
+                    raise HTTPException(
+                        status_code=response.status_code,
+                        detail="Failed to update daily task series",
+                    )
+
+                updated_rows = response.json()
+
+                if not updated_rows:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Daily task not found",
+                    )
+
+                if existing_task["id"] == task_id:
+                    updated_selected_task = updated_rows[0]
+
+            if not updated_selected_task:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Daily task not found",
+                )
+
+            return updated_selected_task
+
+        # Update only the selected occurrence.
         reminder_schedule_changed = any(
             [
-                existing_task["task_date"]
+                selected_task["task_date"]
                 != task.date.isoformat(),
-                normalize_db_time(existing_task["start_time"])
+                normalize_db_time(
+                    selected_task["start_time"]
+                )
                 != new_start_time,
-                existing_task["reminder"]
+                selected_task["reminder"]
                 != task.reminder,
-                normalize_db_time(existing_task["reminder_time"])
+                normalize_db_time(
+                    selected_task["reminder_time"]
+                )
                 != new_reminder_time,
-                existing_task["time_zone"]
+                selected_task["time_zone"]
                 != task.timeZone,
             ]
         )
@@ -324,20 +460,32 @@ async def update_daily_task(
             "notes": task.notes,
             "reminder": task.reminder,
             "reminder_time": new_reminder_time,
-            "reminder_at": (
-                reminder_at.isoformat()
-                if reminder_at
-                else None
-            ),
             "time_zone": task.timeZone,
         }
 
         if reminder_schedule_changed:
+            try:
+                reminder_at = calculate_reminder_at(task)
+            except ValueError as error:
+                raise HTTPException(
+                    status_code=422,
+                    detail=str(error),
+                )
+
+            task_data["reminder_at"] = (
+                reminder_at.isoformat()
+                if reminder_at
+                else None
+            )
+
             task_data["reminder_sent_at"] = None
 
         response = await client.patch(
-            f"{SUPABASE_URL}/rest/v1/daily_tasks?id=eq.{task_id}",
+            f"{SUPABASE_URL}/rest/v1/daily_tasks",
             headers=headers,
+            params={
+                "id": f"eq.{task_id}",
+            },
             json=task_data,
         )
 

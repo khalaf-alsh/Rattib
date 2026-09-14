@@ -81,18 +81,21 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<DailyTask | null>(null);
-  const handleSaveTask = async (taskInput: DailyTaskInput) => {
+  const handleSaveTask = async (
+    taskInput: DailyTaskInput,
+    scope: "single" | "series",
+  ) => {
     try {
       let savedTask: DailyTask;
 
       if (editingTask) {
-        savedTask = await updateDailyTask(editingTask.id, taskInput);
+        savedTask = await updateDailyTask(editingTask.id, taskInput, scope);
 
-        setTasks((currentTasks) =>
-          currentTasks.map((task) =>
-            task.id === editingTask.id ? savedTask : task,
-          ),
-        );
+        // Reload because editing an entire series may update
+        // multiple task occurrences at once.
+        const refreshedTasks = await getDailyTasks();
+
+        setTasks(refreshedTasks);
       } else {
         savedTask = await createDailyTask(taskInput);
 

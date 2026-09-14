@@ -132,6 +132,10 @@
     "login": "العودة لتسجيل الدخول"
   },
   "dailyTask": {
+    "editSeriesTitle": "تعديل مهمة متكررة",
+    "editSeriesConfirmation": "هل تريد تطبيق التغييرات على هذه المهمة فقط أم على جميع المهام في السلسلة؟ عند تعديل السلسلة ستبقى تواريخ التكرار كما هي.",
+    "editThisTask": "هذه المهمة فقط",
+    "editEntireSeries": "كل المهام في السلسلة",
     "multipleDates": "تواريخ المهمة",
     "selectMultipleDates": "اختر التواريخ",
     "selectedDatesCount": "تم اختيار {{count}} تواريخ إضافية",

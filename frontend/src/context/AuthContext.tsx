@@ -14,12 +14,26 @@ import { PRIVACY_VERSION, TERMS_VERSION } from "../lib/legalVersions";
 type AuthContextType = {
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<string | null>;
-  signUp: (email: string, password: string) => Promise<string | null>;
+  signIn: (
+    email: string,
+    password: string,
+    captchaToken: string,
+  ) => Promise<string | null>;
+
+  signUp: (
+    email: string,
+    password: string,
+    captchaToken: string,
+  ) => Promise<string | null>;
+
   signOut: () => Promise<void>;
   updateEmail: (email: string) => Promise<string | null>;
   updatePassword: (password: string) => Promise<string | null>;
-  resetPassword: (email: string) => Promise<string | null>;
+
+  resetPassword: (
+    email: string,
+    captchaToken: string,
+  ) => Promise<string | null>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,19 +70,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (
+    email: string,
+    password: string,
+    captchaToken: string,
+  ) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: {
+          captchaToken,
+        },
       });
+
       return error ? authErrorKey(error, "loginFailed") : null;
     } catch (error) {
       return authErrorKey(error, "loginFailed");
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    captchaToken: string,
+  ) => {
     try {
       const acceptedAt = new Date().toISOString();
 
@@ -76,6 +102,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         email,
         password,
         options: {
+          captchaToken,
+
           data: {
             terms_accepted_at: acceptedAt,
             terms_version: TERMS_VERSION,
@@ -94,12 +122,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+  const resetPassword = async (email: string, captchaToken: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+        captchaToken,
+      });
 
-    return error ? error.message : null;
+      return error ? error.message : null;
+    } catch (error) {
+      return error instanceof Error ? error.message : "Password reset failed";
+    }
   };
 
   const updateEmail = async (email: string) => {

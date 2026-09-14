@@ -158,6 +158,10 @@
     "deleteThisTask": "This task only",
     "deleteEntireSeries": "Entire series",
     "deleting": "Deleting...",
+    "editSeriesTitle": "Edit recurring task",
+    "editSeriesConfirmation": "Do you want to apply the changes to this task only or to the entire series? Series dates will remain unchanged.",
+    "editThisTask": "This task only",
+    "editEntireSeries": "Entire series",
     "repeats": {
       "none": "Doesn't repeat",
       "daily": "Daily",

@@ -78,11 +78,13 @@ export async function createDailyTask(
   return mapDailyTask(data);
 }
 
+export type DailyTaskUpdateScope = "single" | "series";
 export async function updateDailyTask(
   taskId: number,
   task: DailyTaskInput,
+  scope: DailyTaskUpdateScope = "single",
 ): Promise<DailyTask> {
-  const response = await apiFetch(`/api/daily-tasks/${taskId}`, {
+  const response = await apiFetch(`/api/daily-tasks/${taskId}?scope=${scope}`, {
     method: "PUT",
     body: JSON.stringify(task),
   });

@@ -20,7 +20,7 @@ type TaskModalProps = {
   task?: DailyTask;
   onDelete?: (scope: "single" | "series") => Promise<void>;
   onClose: () => void;
-  onSave: (task: DailyTaskInput) => Promise<void>;
+  onSave: (task: DailyTaskInput, scope: "single" | "series") => Promise<void>;
 };
 
 function formatDateKey(date: Date) {
@@ -139,6 +139,10 @@ function TaskModal({
   const [reminderTime, setReminderTime] = useState(task?.reminderTime ?? "");
 
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmEditScope, setConfirmEditScope] = useState(false);
+
+  const [pendingTaskInput, setPendingTaskInput] =
+    useState<DailyTaskInput | null>(null);
 
   const [calendarOpen, setCalendarOpen] = useState(false);
 
@@ -219,6 +223,23 @@ function TaskModal({
     }
   };
 
+  const handleSaveWithScope = async (
+    taskInput: DailyTaskInput,
+    scope: "single" | "series",
+  ) => {
+    if (isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      await onSave(taskInput, scope);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
@@ -285,47 +306,45 @@ function TaskModal({
         ? Intl.DateTimeFormat().resolvedOptions().timeZone
         : undefined;
 
-    if (isSaving) {
+    const taskInput: DailyTaskInput = {
+      title: title.trim(),
+      date: formatDateKey(taskDate),
+
+      startTime: startTime || undefined,
+      endTime: endTime || undefined,
+
+      notes: notes.trim() || undefined,
+
+      reminder,
+
+      reminderTime:
+        reminder === "customTime" ? reminderTime || undefined : undefined,
+
+      timeZone,
+
+      // Recurrence metadata is only used when creating a new series.
+      seriesType: task ? "single" : seriesType,
+
+      repeatUntil:
+        !task &&
+        (seriesType === "daily" || seriesType === "weekly") &&
+        repeatUntil
+          ? formatDateKey(repeatUntil)
+          : undefined,
+
+      customDates:
+        !task && seriesType === "customDates"
+          ? customDates.map(formatDateKey)
+          : undefined,
+    };
+
+    if (task?.seriesId) {
+      setPendingTaskInput(taskInput);
+      setConfirmEditScope(true);
       return;
     }
 
-    setIsSaving(true);
-
-    try {
-      await onSave({
-        title: title.trim(),
-        date: formatDateKey(taskDate),
-
-        startTime: startTime || undefined,
-        endTime: endTime || undefined,
-
-        notes: notes.trim() || undefined,
-
-        reminder,
-
-        reminderTime:
-          reminder === "customTime" ? reminderTime || undefined : undefined,
-
-        timeZone,
-
-        // Existing occurrences are edited individually for now.
-        seriesType: task ? "single" : seriesType,
-
-        repeatUntil:
-          !task &&
-          (seriesType === "daily" || seriesType === "weekly") &&
-          repeatUntil
-            ? formatDateKey(repeatUntil)
-            : undefined,
-
-        customDates:
-          !task && seriesType === "customDates"
-            ? customDates.map(formatDateKey)
-            : undefined,
-      });
-    } finally {
-      setIsSaving(false);
-    }
+    await handleSaveWithScope(taskInput, "single");
   };
 
   return (
@@ -345,6 +364,9 @@ function TaskModal({
 
           if (confirmDelete) {
             setConfirmDelete(false);
+          } else if (confirmEditScope) {
+            setConfirmEditScope(false);
+            setPendingTaskInput(null);
           } else if (activeTimePicker) {
             setActiveTimePicker(null);
           } else if (repeatCalendarOpen) {
@@ -766,6 +788,76 @@ function TaskModal({
                       {isDeleting ? t("dailyTask.deleting") : t("delete")}
                     </button>
                   )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {confirmEditScope && pendingTaskInput && (
+          <div
+            className="delete-scope-overlay"
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={() => {
+              if (!isSaving) {
+                setConfirmEditScope(false);
+                setPendingTaskInput(null);
+              }
+            }}
+          >
+            <div
+              className="delete-scope-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="edit-scope-title"
+              aria-describedby="edit-scope-description"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="delete-scope-header">
+                <h3 id="edit-scope-title">{t("dailyTask.editSeriesTitle")}</h3>
+              </div>
+
+              <div className="delete-confirmation">
+                <p id="edit-scope-description">
+                  {t("dailyTask.editSeriesConfirmation")}
+                </p>
+
+                <div className="delete-confirmation-actions">
+                  <button
+                    type="button"
+                    className="delete-cancel-button"
+                    disabled={isSaving}
+                    onClick={() => {
+                      setConfirmEditScope(false);
+                      setPendingTaskInput(null);
+                    }}
+                  >
+                    {t("cancel")}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="edit-single-button"
+                    disabled={isSaving}
+                    onClick={() =>
+                      void handleSaveWithScope(pendingTaskInput, "single")
+                    }
+                  >
+                    {t("dailyTask.editThisTask")}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="edit-series-button"
+                    disabled={isSaving}
+                    onClick={() =>
+                      void handleSaveWithScope(pendingTaskInput, "series")
+                    }
+                  >
+                    {isSaving
+                      ? t("dailyTask.saving")
+                      : t("dailyTask.editEntireSeries")}
+                  </button>
                 </div>
               </div>
             </div>
