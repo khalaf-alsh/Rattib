@@ -1,8 +1,9 @@
 from datetime import date as DateType
 from datetime import time as TimeType
+from datetime import timedelta
 from typing import Literal
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 
 TaskReminder = Literal[
@@ -13,6 +14,13 @@ TaskReminder = Literal[
     "30Minutes",
     "1Hour",
     "customTime",
+]
+
+TaskSeriesType = Literal[
+    "single",
+    "daily",
+    "weekly",
+    "customDates",
 ]
 
 
@@ -26,27 +34,34 @@ class DailyTaskInput(BaseModel):
     notes: str | None = None
 
     reminder: TaskReminder = "none"
-
-    # يستخدم فقط إذا كانت المهمة بدون Start Time
     reminderTime: TimeType | None = None
-
-    # مثال: Asia/Riyadh
     timeZone: str | None = None
 
+    seriesType: TaskSeriesType = "single"
+
+    # Used only for daily and weekly recurrence.
+    repeatUntil: DateType | None = None
+
+    # Used only when the user manually selects multiple dates.
+    customDates: list[DateType] = Field(default_factory=list)
+
     @model_validator(mode="after")
+    def validate_task(self):
+        self.validate_reminder()
+        self.validate_recurrence()
+
+        return self
+
     def validate_reminder(self):
-        # لا يوجد تذكير
         if self.reminder == "none":
             self.reminderTime = None
-            return self
+            return
 
-        # أي تذكير فعلي يحتاج Time Zone
         if not self.timeZone:
             raise ValueError(
                 "timeZone is required when a reminder is enabled"
             )
 
-        # مهمة بدون وقت بداية
         if self.startTime is None:
             if self.reminder != "customTime":
                 raise ValueError(
@@ -58,9 +73,8 @@ class DailyTaskInput(BaseModel):
                     "reminderTime is required for untimed tasks"
                 )
 
-            return self
+            return
 
-        # مهمة لها وقت بداية
         if self.reminder == "customTime":
             raise ValueError(
                 "Timed tasks cannot use customTime reminder"
@@ -71,7 +85,55 @@ class DailyTaskInput(BaseModel):
                 "reminderTime is only allowed for untimed tasks"
             )
 
-        return self
+    def validate_recurrence(self):
+        # A normal task does not need recurrence-specific values.
+        if self.seriesType == "single":
+            self.repeatUntil = None
+            self.customDates = []
+            return
+
+        max_date = self.date + timedelta(days=30)
+
+        if self.seriesType in ("daily", "weekly"):
+            if self.repeatUntil is None:
+                raise ValueError(
+                    "repeatUntil is required for recurring tasks"
+                )
+
+            if self.repeatUntil < self.date:
+                raise ValueError(
+                    "repeatUntil cannot be before the task date"
+                )
+
+            if self.repeatUntil > max_date:
+                raise ValueError(
+                    "Recurring tasks cannot exceed 30 days"
+                )
+
+            self.customDates = []
+            return
+
+        if self.seriesType == "customDates":
+            self.repeatUntil = None
+
+            if not self.customDates:
+                raise ValueError(
+                    "At least one additional date is required"
+                )
+
+            # Remove duplicates and keep the dates sorted.
+            self.customDates = sorted(set(self.customDates))
+
+            for custom_date in self.customDates:
+                if custom_date < self.date:
+                    raise ValueError(
+                        "Custom dates cannot be before the task date"
+                    )
+
+                if custom_date > max_date:
+                    raise ValueError(
+                        "Custom dates cannot exceed 30 days"
+                    )
 
 
 class DailyTaskCompletionInput(BaseModel):

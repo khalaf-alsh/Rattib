@@ -3,7 +3,13 @@ import { CalendarDays, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import CalendarPicker from "./CalendarPicker";
-import type { DailyTask, TaskReminder } from "../../types/dailyPlanner";
+import type {
+  DailyTask,
+  DailyTaskInput,
+  TaskReminder,
+  TaskSeriesType,
+} from "../../types/dailyPlanner";
+import MultiDatePicker from "./MultiDatePicker";
 import TimeWheelPicker from "../ui/TimeWheelPicker";
 
 import "./TaskModal.css";
@@ -12,9 +18,9 @@ import "../schedule/DeleteScopeModal.css";
 type TaskModalProps = {
   selectedDate: Date;
   task?: DailyTask;
-  onDelete?: () => void;
+  onDelete?: (scope: "single" | "series") => Promise<void>;
   onClose: () => void;
-  onSave: (task: Omit<DailyTask, "id" | "completed">) => void;
+  onSave: (task: DailyTaskInput) => Promise<void>;
 };
 
 function formatDateKey(date: Date) {
@@ -23,6 +29,14 @@ function formatDateKey(date: Date) {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+function addDays(date: Date, days: number) {
+  const result = new Date(date);
+
+  result.setDate(result.getDate() + days);
+
+  return result;
 }
 
 const REMINDER_OFFSETS_MINUTES: Partial<Record<TaskReminder, number>> = {
@@ -88,7 +102,8 @@ function TaskModal({
 
   const isArabic = i18n.language === "ar";
   const locale = isArabic ? "ar-SA" : "en-US";
-
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [title, setTitle] = useState(task?.title ?? "");
 
   const [taskDate, setTaskDate] = useState(() => {
@@ -100,6 +115,16 @@ function TaskModal({
 
     return new Date(year, month - 1, day);
   });
+
+  const [seriesType, setSeriesType] = useState<TaskSeriesType>("single");
+
+  const [repeatUntil, setRepeatUntil] = useState<Date | null>(null);
+
+  const [repeatCalendarOpen, setRepeatCalendarOpen] = useState(false);
+
+  const [customDates, setCustomDates] = useState<Date[]>([]);
+
+  const [customDatePickerOpen, setCustomDatePickerOpen] = useState(false);
 
   const [startTime, setStartTime] = useState(task?.startTime ?? "");
 
@@ -123,6 +148,19 @@ function TaskModal({
     "start" | "end" | "reminder" | null
   >(null);
 
+  const handleDelete = async (scope: "single" | "series") => {
+    if (!onDelete || isDeleting) {
+      return;
+    }
+
+    setIsDeleting(true);
+
+    try {
+      await onDelete(scope);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
   const formattedDate = taskDate.toLocaleDateString(locale, {
     calendar: "gregory",
     weekday: "long",
@@ -156,7 +194,32 @@ function TaskModal({
     }
   };
 
-  const handleSubmit = (event: FormEvent) => {
+  const maxRepeatDate = addDays(taskDate, 30);
+
+  const formattedRepeatUntil = repeatUntil?.toLocaleDateString(locale, {
+    calendar: "gregory",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  const handleSeriesTypeChange = (value: TaskSeriesType) => {
+    setSeriesType(value);
+    setError("");
+
+    if (value !== "daily" && value !== "weekly") {
+      setRepeatUntil(null);
+      setRepeatCalendarOpen(false);
+    }
+
+    if (value !== "customDates") {
+      setCustomDates([]);
+      setCustomDatePickerOpen(false);
+    }
+  };
+
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
     setError("");
@@ -195,27 +258,74 @@ function TaskModal({
       }
     }
 
+    if (!task && (seriesType === "daily" || seriesType === "weekly")) {
+      if (!repeatUntil) {
+        setError("dailyTask.errors.repeatUntilRequired");
+        return;
+      }
+
+      if (repeatUntil < taskDate) {
+        setError("dailyTask.errors.repeatUntilBeforeStart");
+        return;
+      }
+
+      if (repeatUntil > maxRepeatDate) {
+        setError("dailyTask.errors.repeatLimitExceeded");
+        return;
+      }
+    }
+
+    if (!task && seriesType === "customDates" && customDates.length === 0) {
+      setError("dailyTask.errors.customDatesRequired");
+      return;
+    }
+
     const timeZone =
       reminder !== "none"
         ? Intl.DateTimeFormat().resolvedOptions().timeZone
         : undefined;
 
-    onSave({
-      title: title.trim(),
-      date: formatDateKey(taskDate),
+    if (isSaving) {
+      return;
+    }
 
-      startTime: startTime || undefined,
-      endTime: endTime || undefined,
+    setIsSaving(true);
 
-      notes: notes.trim() || undefined,
+    try {
+      await onSave({
+        title: title.trim(),
+        date: formatDateKey(taskDate),
 
-      reminder,
+        startTime: startTime || undefined,
+        endTime: endTime || undefined,
 
-      reminderTime:
-        reminder === "customTime" ? reminderTime || undefined : undefined,
+        notes: notes.trim() || undefined,
 
-      timeZone,
-    });
+        reminder,
+
+        reminderTime:
+          reminder === "customTime" ? reminderTime || undefined : undefined,
+
+        timeZone,
+
+        // Existing occurrences are edited individually for now.
+        seriesType: task ? "single" : seriesType,
+
+        repeatUntil:
+          !task &&
+          (seriesType === "daily" || seriesType === "weekly") &&
+          repeatUntil
+            ? formatDateKey(repeatUntil)
+            : undefined,
+
+        customDates:
+          !task && seriesType === "customDates"
+            ? customDates.map(formatDateKey)
+            : undefined,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -237,6 +347,10 @@ function TaskModal({
             setConfirmDelete(false);
           } else if (activeTimePicker) {
             setActiveTimePicker(null);
+          } else if (repeatCalendarOpen) {
+            setRepeatCalendarOpen(false);
+          } else if (customDatePickerOpen) {
+            setCustomDatePickerOpen(false);
           } else if (calendarOpen) {
             setCalendarOpen(false);
           } else {
@@ -298,11 +412,139 @@ function TaskModal({
                   onSelect={(date) => {
                     setTaskDate(date);
                     setCalendarOpen(false);
+
+                    if (repeatUntil && repeatUntil < date) {
+                      setRepeatUntil(null);
+                    }
+
+                    // Extra selected dates depend on the main task date,
+                    // so reset them when the starting date changes.
+                    setCustomDates([]);
+                    setCustomDatePickerOpen(false);
                   }}
                 />
               )}
             </div>
           </div>
+
+          {!task && (
+            <div className="task-form-field">
+              <label htmlFor="task-repeat">{t("dailyTask.repeat")}</label>
+
+              <select
+                id="task-repeat"
+                value={seriesType}
+                onChange={(event) =>
+                  handleSeriesTypeChange(event.target.value as TaskSeriesType)
+                }
+              >
+                <option value="single">{t("dailyTask.repeats.none")}</option>
+
+                <option value="daily">{t("dailyTask.repeats.daily")}</option>
+
+                <option value="weekly">{t("dailyTask.repeats.weekly")}</option>
+
+                <option value="customDates">
+                  {t("dailyTask.repeats.customDates")}
+                </option>
+              </select>
+            </div>
+          )}
+
+          {!task && (seriesType === "daily" || seriesType === "weekly") && (
+            <div className="task-form-field">
+              <label>
+                {t("dailyTask.repeatUntil")}
+                <span>*</span>
+              </label>
+
+              <div className="task-date-wrapper">
+                <button
+                  type="button"
+                  className="task-date-button"
+                  onClick={() => setRepeatCalendarOpen((current) => !current)}
+                >
+                  <CalendarDays size={18} />
+
+                  <span>
+                    {formattedRepeatUntil ?? t("dailyTask.selectRepeatEnd")}
+                  </span>
+                </button>
+
+                {repeatCalendarOpen && (
+                  <CalendarPicker
+                    selectedDate={repeatUntil ?? taskDate}
+                    onSelect={(date) => {
+                      if (date < taskDate) {
+                        setError("dailyTask.errors.repeatUntilBeforeStart");
+                        return;
+                      }
+
+                      if (date > maxRepeatDate) {
+                        setError("dailyTask.errors.repeatLimitExceeded");
+                        return;
+                      }
+
+                      setRepeatUntil(date);
+                      setRepeatCalendarOpen(false);
+                      setError("");
+                    }}
+                  />
+                )}
+              </div>
+
+              <small className="task-repeat-help">
+                {t("dailyTask.repeatLimit")}
+              </small>
+            </div>
+          )}
+
+          {!task && seriesType === "customDates" && (
+            <div className="task-form-field">
+              <label>
+                {t("dailyTask.multipleDates")}
+                <span>*</span>
+              </label>
+
+              <div className="task-date-wrapper">
+                <button
+                  type="button"
+                  className="task-date-button"
+                  onClick={() => setCustomDatePickerOpen(true)}
+                >
+                  <CalendarDays size={18} />
+
+                  <span>
+                    {customDates.length > 0
+                      ? t("dailyTask.selectedDatesCount", {
+                          count: customDates.length,
+                        })
+                      : t("dailyTask.selectMultipleDates")}
+                  </span>
+                </button>
+
+                {customDatePickerOpen && (
+                  <MultiDatePicker
+                    startDate={taskDate}
+                    selectedDates={customDates}
+                    maxDate={maxRepeatDate}
+                    onConfirm={(dates) => {
+                      setCustomDates(dates);
+                      setCustomDatePickerOpen(false);
+                      setError("");
+                    }}
+                    onCancel={() => {
+                      setCustomDatePickerOpen(false);
+                    }}
+                  />
+                )}
+              </div>
+
+              <small className="task-repeat-help">
+                {t("dailyTask.multipleDatesHelp")}
+              </small>
+            </div>
+          )}
 
           <div className="task-time-row">
             <div className="task-form-field">
@@ -433,8 +675,14 @@ function TaskModal({
               {t("cancel")}
             </button>
 
-            <button type="submit" className="task-modal-save">
-              {t(task ? "saveChanges" : "dailyTask.addTask")}
+            <button
+              type="submit"
+              className="task-modal-save"
+              disabled={isSaving}
+            >
+              {isSaving
+                ? t("dailyTask.saving")
+                : t(task ? "saveChanges" : "dailyTask.addTask")}
             </button>
           </div>
         </form>
@@ -443,7 +691,11 @@ function TaskModal({
           <div
             className="delete-scope-overlay"
             onMouseDown={(event) => event.stopPropagation()}
-            onClick={() => setConfirmDelete(false)}
+            onClick={() => {
+              if (!isDeleting) {
+                setConfirmDelete(false);
+              }
+            }}
           >
             <div
               className="delete-scope-modal"
@@ -459,29 +711,61 @@ function TaskModal({
 
               <div className="delete-confirmation">
                 <p id="delete-task-description">
-                  {t("dailyTask.deleteConfirmation", {
-                    title: task?.title,
-                  })}
+                  {task?.seriesId
+                    ? t("dailyTask.deleteSeriesConfirmation", {
+                        title: task.title,
+                      })
+                    : t("dailyTask.deleteConfirmation", {
+                        title: task?.title,
+                      })}
                 </p>
 
                 <div className="delete-confirmation-actions">
                   <button
                     type="button"
-                    autoFocus
                     className="delete-cancel-button"
+                    disabled={isDeleting}
                     onClick={() => setConfirmDelete(false)}
                   >
                     {t("cancel")}
                   </button>
 
-                  <button
-                    type="button"
-                    className="confirm-delete-button"
-                    onClick={onDelete}
-                  >
-                    <Trash2 size={17} />
-                    {t("delete")}
-                  </button>
+                  {task?.seriesId ? (
+                    <>
+                      <button
+                        type="button"
+                        className="delete-single-button"
+                        disabled={isDeleting}
+                        onClick={() => void handleDelete("single")}
+                      >
+                        <Trash2 size={17} />
+
+                        {t("dailyTask.deleteThisTask")}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="confirm-delete-button"
+                        disabled={isDeleting}
+                        onClick={() => void handleDelete("series")}
+                      >
+                        <Trash2 size={17} />
+
+                        {t("dailyTask.deleteEntireSeries")}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="confirm-delete-button"
+                      disabled={isDeleting}
+                      onClick={() => void handleDelete("single")}
+                    >
+                      <Trash2 size={17} />
+
+                      {isDeleting ? t("dailyTask.deleting") : t("delete")}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

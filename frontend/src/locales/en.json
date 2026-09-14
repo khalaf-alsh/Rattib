@@ -132,6 +132,7 @@
     "login": "Back to Login"
   },
   "dailyTask": {
+    "saving": "Saving...",
     "reminderTime": "Reminder Time",
     "addTitle": "Add Task",
     "addTask": "Add Task",
@@ -143,6 +144,26 @@
     "notes": "Notes",
     "notesPlaceholder": "Additional notes...",
     "reminder": "Reminder",
+    "repeat": "Repeat",
+    "repeatUntil": "Repeat until",
+    "selectRepeatEnd": "Select repeat end date",
+    "repeatLimit": "Tasks can repeat for up to 30 days from the task date.",
+    "multipleDates": "Task dates",
+    "selectMultipleDates": "Select dates",
+    "selectedDatesCount": "{{count}} additional dates selected",
+    "multipleDatesHelp": "The main task date is included automatically. You can select additional dates within 30 days.",
+    "confirmDates": "Confirm",
+    "cancelDates": "Cancel",
+    "deleteSeriesConfirmation": "This task is part of a recurring series. What would you like to delete?",
+    "deleteThisTask": "This task only",
+    "deleteEntireSeries": "Entire series",
+    "deleting": "Deleting...",
+    "repeats": {
+      "none": "Doesn't repeat",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "customDates": "Multiple dates"
+    },
     "reminders": {
       "customTime": "Custom Time",
       "none": "No reminder",
@@ -153,11 +174,15 @@
       "oneHour": "1 hour before"
     },
     "errors": {
+      "customDatesRequired": "Select at least one additional date",
       "reminderTimeRequired": "Please select a reminder time.",
       "titleRequired": "Please enter a task name.",
       "startTimeRequired": "Please select a start time first.",
       "invalidEndTime": "End time must be after start time.",
-      "reminderMustBeFuture": "The reminder time must be in the future."
+      "reminderMustBeFuture": "The reminder time must be in the future.",
+      "repeatUntilRequired": "Select a repeat end date",
+      "repeatUntilBeforeStart": "The repeat end date cannot be before the task date",
+      "repeatLimitExceeded": "Recurring tasks are limited to 30 days from the task date"
     },
     "selectTime": "Select time",
     "editTitle": "Edit Task",

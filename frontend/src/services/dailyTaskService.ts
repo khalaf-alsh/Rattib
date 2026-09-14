@@ -1,6 +1,6 @@
 import { apiFetch } from "../lib/apiClient";
 
-import type { DailyTask } from "../types/dailyPlanner";
+import type { DailyTask, DailyTaskInput } from "../types/dailyPlanner";
 
 type BackendDailyTask = {
   id: number;
@@ -19,9 +19,9 @@ type BackendDailyTask = {
   time_zone: string | null;
 
   completed: boolean;
+  series_id: string | null;
+  series_type: DailyTask["seriesType"];
 };
-
-type DailyTaskInput = Omit<DailyTask, "id" | "completed">;
 
 function mapDailyTask(task: BackendDailyTask): DailyTask {
   return {
@@ -43,6 +43,8 @@ function mapDailyTask(task: BackendDailyTask): DailyTask {
 
     timeZone: task.time_zone ?? undefined,
 
+    seriesId: task.series_id ?? undefined,
+    seriesType: task.series_type ?? "single",
     completed: task.completed,
   };
 }
@@ -114,8 +116,13 @@ export async function updateDailyTaskCompletion(
   return mapDailyTask(data);
 }
 
-export async function deleteDailyTask(taskId: number): Promise<void> {
-  const response = await apiFetch(`/api/daily-tasks/${taskId}`, {
+export type DailyTaskDeleteScope = "single" | "series";
+
+export async function deleteDailyTask(
+  taskId: number,
+  scope: DailyTaskDeleteScope = "single",
+): Promise<void> {
+  const response = await apiFetch(`/api/daily-tasks/${taskId}?scope=${scope}`, {
     method: "DELETE",
   });
 

@@ -132,6 +132,11 @@
     "login": "العودة لتسجيل الدخول"
   },
   "dailyTask": {
+    "multipleDates": "تواريخ المهمة",
+    "selectMultipleDates": "اختر التواريخ",
+    "selectedDatesCount": "تم اختيار {{count}} تواريخ إضافية",
+    "multipleDatesHelp": "تاريخ المهمة الأساسي مضاف تلقائيًا، ويمكنك اختيار تواريخ إضافية خلال 30 يومًا.",
+    "saving": "جارٍ الحفظ...",
     "addTitle": "إضافة مهمة",
     "addTask": "إضافة المهمة",
     "taskName": "اسم المهمة",
@@ -143,6 +148,22 @@
     "notesPlaceholder": "ملاحظات إضافية...",
     "reminder": "التذكير",
     "reminderTime": "وقت التذكير",
+    "repeat": "التكرار",
+    "repeatUntil": "التكرار حتى",
+    "selectRepeatEnd": "اختر تاريخ انتهاء التكرار",
+    "repeatLimit": "يمكن تكرار المهمة لمدة تصل إلى 30 يومًا من تاريخ المهمة.",
+    "confirmDates": "تأكيد",
+    "cancelDates": "إلغاء",
+    "deleteSeriesConfirmation": "هذه المهمة جزء من سلسلة متكررة. ماذا تريد أن تحذف؟",
+    "deleteThisTask": "هذه المهمة فقط",
+    "deleteEntireSeries": "كل المهام في السلسلة",
+    "deleting": "جارٍ الحذف...",
+    "repeats": {
+      "none": "بدون تكرار",
+      "daily": "يومي",
+      "weekly": "أسبوعي",
+      "customDates": "تواريخ متعددة"
+    },
     "reminders": {
       "customTime": "تحديد وقت",
       "none": "بدون تذكير",
@@ -157,7 +178,11 @@
       "startTimeRequired": "يرجى تحديد وقت البداية أولاً.",
       "invalidEndTime": "يجب أن يكون وقت النهاية بعد وقت البداية.",
       "reminderTimeRequired": "يرجى تحديد وقت للتذكير",
-      "reminderMustBeFuture": "وقت التذكير يجب أن يكون في المستقبل."
+      "reminderMustBeFuture": "وقت التذكير يجب أن يكون في المستقبل.",
+      "repeatUntilRequired": "اختر تاريخ انتهاء التكرار",
+      "repeatUntilBeforeStart": "تاريخ انتهاء التكرار لا يمكن أن يسبق تاريخ المهمة",
+      "repeatLimitExceeded": "الحد الأقصى للتكرار هو 30 يومًا من تاريخ المهمة",
+      "customDatesRequired": "اختر تاريخًا إضافيًا واحدًا على الأقل"
     },
     "selectTime": "اختر الوقت",
     "editTitle": "تعديل مهمة",

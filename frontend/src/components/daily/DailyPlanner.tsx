@@ -11,7 +11,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { DailyTask } from "../../types/dailyPlanner";
+import type { DailyTask, DailyTaskInput } from "../../types/dailyPlanner";
 import {
   createDailyTask,
   deleteDailyTask,
@@ -81,9 +81,7 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<DailyTask | null>(null);
-  const handleSaveTask = async (
-    taskInput: Omit<DailyTask, "id" | "completed">,
-  ) => {
+  const handleSaveTask = async (taskInput: DailyTaskInput) => {
     try {
       let savedTask: DailyTask;
 
@@ -98,7 +96,11 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
       } else {
         savedTask = await createDailyTask(taskInput);
 
-        setTasks((currentTasks) => [...currentTasks, savedTask]);
+        // Reload after creation because a recurring task may create
+        // multiple database rows in a single request.
+        const refreshedTasks = await getDailyTasks();
+
+        setTasks(refreshedTasks);
       }
 
       setTaskModalOpen(false);
@@ -478,17 +480,19 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
       {taskModalOpen && (
         <TaskModal
           task={editingTask ?? undefined}
-          onDelete={async () => {
+          onDelete={async (scope) => {
             if (!editingTask) {
               return;
             }
 
             try {
-              await deleteDailyTask(editingTask.id);
+              await deleteDailyTask(editingTask.id, scope);
 
-              setTasks((currentTasks) =>
-                currentTasks.filter((task) => task.id !== editingTask.id),
-              );
+              // Reload from the backend because deleting a series
+              // may remove multiple task occurrences at once.
+              const refreshedTasks = await getDailyTasks();
+
+              setTasks(refreshedTasks);
 
               setTaskModalOpen(false);
               setEditingTask(null);
