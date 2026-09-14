@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import AuthFooter from "../../components/auth/AuthFooter";
 import PasswordRequirements from "../../components/auth/PasswordRequirements";
 import AuthPageControls from "../../components/auth/AuthPageControls";
+import AuthCaptcha from "../../components/auth/AuthCaptcha";
+
 import { useAuth } from "../../context/AuthContext";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { isPasswordValid } from "../../lib/passwordPolicy";
@@ -31,12 +33,24 @@ function RegisterPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
+
   usePageTitle("pageTitles.register");
 
   if (user && !registeredEmail) {
     return <Navigate to="/schedule" replace />;
   }
 
+  // Resets the CAPTCHA after a failed registration attempt
+  // so the same Turnstile token cannot be submitted again.
+  const resetCaptcha = () => {
+    setCaptchaToken("");
+    setCaptchaResetKey((current) => current + 1);
+  };
+
+  // Validates all registration requirements before creating
+  // the Supabase account and sending the CAPTCHA token.
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
@@ -59,15 +73,20 @@ function RegisterPage() {
       return;
     }
 
+    if (!captchaToken || submitting) {
+      return;
+    }
+
     setSubmitting(true);
 
     const trimmedEmail = email.trim();
 
-    const authError = await signUp(trimmedEmail, password);
+    const authError = await signUp(trimmedEmail, password, captchaToken);
 
     setSubmitting(false);
 
     if (authError) {
+      resetCaptcha();
       setError(authError);
       return;
     }
@@ -80,6 +99,7 @@ function RegisterPage() {
       <main className="auth-page">
         <div className="auth-card">
           <AuthPageControls />
+
           <div className="auth-brand">
             <img src={rattebIcon} alt="" />
             <h1>{t("appName")}</h1>
@@ -113,6 +133,7 @@ function RegisterPage() {
     <main className="auth-page">
       <div className="auth-card">
         <AuthPageControls />
+
         <div className="auth-brand">
           <img src={rattebIcon} alt="" />
           <h1>{t("appName")}</h1>
@@ -199,13 +220,28 @@ function RegisterPage() {
             </label>
           </div>
 
+          <AuthCaptcha
+            resetKey={captchaResetKey}
+            onVerify={(token) => {
+              setCaptchaToken(token);
+              setError("");
+            }}
+            onExpire={() => {
+              setCaptchaToken("");
+            }}
+          />
+
           {error && (
             <p className="auth-error" role="alert">
               {t(error)}
             </p>
           )}
 
-          <button type="submit" className="auth-submit" disabled={submitting}>
+          <button
+            type="submit"
+            className="auth-submit"
+            disabled={submitting || !captchaToken}
+          >
             {submitting ? t("loading") : t("createAccount")}
           </button>
         </form>

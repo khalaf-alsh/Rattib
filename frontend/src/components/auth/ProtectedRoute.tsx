@@ -6,6 +6,10 @@ import LegalAcceptanceRequired from "./LegalAcceptanceRequired";
 import { useAuth } from "../../context/AuthContext";
 import { getLegalAcceptanceStatus } from "../../services/legalAcceptanceService";
 
+import rattebIcon from "../../assets/ratteb-icon.png";
+
+import "./ProtectedRoute.css";
+
 function ProtectedRoute() {
   const { user, loading } = useAuth();
 
@@ -50,8 +54,23 @@ function ProtectedRoute() {
     };
   }, [user]);
 
+  // Show a centered branded loading screen while authentication
+  // or legal acceptance status is still being resolved.
   if (loading || legalLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div
+        className="app-loading-screen"
+        role="status"
+        aria-live="polite"
+        aria-label="Loading"
+      >
+        <div className="app-loading-spinner">
+          <img src={rattebIcon} alt="" className="app-loading-logo" />
+        </div>
+
+        <span className="app-loading-text">Loading</span>
+      </div>
+    );
   }
 
   if (!user) {
