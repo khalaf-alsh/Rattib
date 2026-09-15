@@ -1,5 +1,7 @@
 import { apiFetch } from "../lib/apiClient";
 
+// Public VAPID key used by the browser when creating
+// a Web Push subscription for this application.
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
 export type PushNotificationStatus =
@@ -8,6 +10,8 @@ export type PushNotificationStatus =
   | "blocked"
   | "unsupported";
 
+// Converts the URL-safe Base64 VAPID key into an ArrayBuffer,
+// which is the format required by the browser Push API.
 function urlBase64ToArrayBuffer(base64String: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
 
@@ -25,7 +29,8 @@ function urlBase64ToArrayBuffer(base64String: string): ArrayBuffer {
   return buffer;
 }
 
-// Checks whether this browser already has an active push subscription.
+// Checks whether push notifications are supported, permitted,
+// and currently subscribed on this browser.
 export async function getPushNotificationStatus(): Promise<PushNotificationStatus> {
   if (
     !("Notification" in window) ||
@@ -73,6 +78,7 @@ export async function enablePushNotifications() {
     throw new Error("Notification permission is blocked");
   }
 
+  // Request permission only when the user has not already granted it.
   const permission =
     Notification.permission === "granted"
       ? "granted"
@@ -82,10 +88,14 @@ export async function enablePushNotifications() {
     throw new Error("Notification permission was not granted");
   }
 
+  // Register the service worker responsible for receiving
+  // push messages when the application is not in the foreground.
   const registration = await navigator.serviceWorker.register("/sw.js");
 
   await navigator.serviceWorker.ready;
 
+  // Reuse the existing browser subscription when possible
+  // instead of creating duplicate subscriptions.
   let subscription = await registration.pushManager.getSubscription();
 
   if (!subscription) {
@@ -95,12 +105,16 @@ export async function enablePushNotifications() {
     });
   }
 
+  // Convert the browser subscription into serializable values
+  // that can be stored by the backend.
   const json = subscription.toJSON();
 
   if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
     throw new Error("Invalid push subscription");
   }
 
+  // Store the subscription on the backend so reminder notifications
+  // can later be sent to this browser.
   const response = await apiFetch("/api/push-subscriptions", {
     method: "POST",
     body: JSON.stringify({
@@ -135,6 +149,8 @@ export async function disablePushNotifications() {
     return;
   }
 
+  // Remove the stored endpoint first so the backend no longer
+  // attempts to send notifications to this browser.
   const response = await apiFetch(
     `/api/push-subscriptions?endpoint=${encodeURIComponent(
       subscription.endpoint,
@@ -148,5 +164,6 @@ export async function disablePushNotifications() {
     throw new Error("Failed to delete push subscription");
   }
 
+  // Finally remove the browser-side Web Push subscription.
   await subscription.unsubscribe();
 }

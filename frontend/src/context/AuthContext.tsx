@@ -5,7 +5,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+
 import type { User } from "@supabase/supabase-js";
+
 import { authErrorKey } from "../lib/authErrors";
 import { supabase } from "../lib/supabaseClient";
 
@@ -14,6 +16,7 @@ import { PRIVACY_VERSION, TERMS_VERSION } from "../lib/legalVersions";
 type AuthContextType = {
   user: User | null;
   loading: boolean;
+
   signIn: (
     email: string,
     password: string,
@@ -27,7 +30,9 @@ type AuthContextType = {
   ) => Promise<string | null>;
 
   signOut: () => Promise<void>;
+
   updateEmail: (email: string) => Promise<string | null>;
+
   updatePassword: (password: string) => Promise<string | null>;
 
   resetPassword: (
@@ -44,9 +49,12 @@ type AuthProviderProps = {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Restore the existing Supabase session when the app starts
+    // so authenticated users remain signed in after refreshing.
     const initializeAuth = async () => {
       const {
         data: { session },
@@ -58,6 +66,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     initializeAuth();
 
+    // Keep the application user state synchronized with Supabase
+    // whenever the authentication session changes.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -65,11 +75,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(false);
     });
 
+    // Remove the authentication listener when the provider
+    // is unmounted to avoid unnecessary subscriptions.
     return () => {
       subscription.unsubscribe();
     };
   }, []);
 
+  // Authenticates an existing user with email and password.
+  // The Turnstile token is forwarded to Supabase for CAPTCHA verification.
   const signIn = async (
     email: string,
     password: string,
@@ -79,6 +93,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
+
         options: {
           captchaToken,
         },
@@ -90,6 +105,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  // Creates a new user account after CAPTCHA verification.
+  // The active legal-document versions and acceptance timestamp
+  // are stored in the user's authentication metadata.
   const signUp = async (
     email: string,
     password: string,
@@ -101,14 +119,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { error } = await supabase.auth.signUp({
         email,
         password,
+
         options: {
           captchaToken,
 
           data: {
             terms_accepted_at: acceptedAt,
+
             terms_version: TERMS_VERSION,
 
             privacy_acknowledged_at: acceptedAt,
+
             privacy_version: PRIVACY_VERSION,
 
             age_confirmed_18_plus: true,
@@ -122,6 +143,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  // Requests a password-reset email after CAPTCHA verification.
+  // Supabase redirects the user back to Ratteb's reset-password page.
   const resetPassword = async (email: string, captchaToken: string) => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -135,6 +158,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  // Updates the email address of the currently authenticated user.
   const updateEmail = async (email: string) => {
     const { error } = await supabase.auth.updateUser({
       email,
@@ -143,6 +167,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return error ? error.message : null;
   };
 
+  // Updates the password of the currently authenticated user.
   const updatePassword = async (password: string) => {
     const { error } = await supabase.auth.updateUser({
       password,
@@ -151,6 +176,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return error ? error.message : null;
   };
 
+  // Ends the current Supabase authentication session.
   const signOut = async () => {
     await supabase.auth.signOut();
   };
@@ -173,6 +199,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 }
 
+// Provides access to the authentication context and prevents
+// accidental usage outside the AuthProvider tree.
 export function useAuth() {
   const context = useContext(AuthContext);
 

@@ -14,6 +14,8 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 
 import "./DeveloperPage.css";
 
+// Keep the developer's public contact and social links centralized
+// so they can be updated consistently.
 const DEVELOPER_EMAIL = "khratteb@gmail.com";
 const DEVELOPER_PHONE_DISPLAY = "+966 57 419 0069";
 const DEVELOPER_WHATSAPP_URL = "https://wa.me/966574190069";
@@ -38,6 +40,7 @@ function DeveloperPage() {
           onClick={() => navigate("/account")}
           aria-label={t("backToAccount")}
         >
+          {/* Match the back arrow direction to the active language direction. */}
           {i18n.dir() === "rtl" ? (
             <ArrowRight size={22} />
           ) : (

@@ -15,12 +15,14 @@ function Header() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Restore the saved theme, defaulting to dark mode.
   const [theme, setTheme] = useState<Theme>(() => {
     const savedTheme = localStorage.getItem("theme");
 
     return savedTheme === "light" ? "light" : "dark";
   });
 
+  // Apply theme changes globally and persist the user's preference.
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
@@ -50,6 +52,7 @@ function Header() {
     });
   };
 
+  // Resolve the visible header title from the current route.
   const getPageTitle = () => {
     if (location.pathname === "/account") {
       return t("account");
@@ -91,7 +94,7 @@ function Header() {
           type="button"
           className="header-icon-button"
           onClick={toggleTheme}
-          aria-label="Theme"
+          aria-label={t("toggleTheme")}
         >
           {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
         </button>

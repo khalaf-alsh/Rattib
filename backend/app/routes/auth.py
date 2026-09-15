@@ -11,10 +11,13 @@ router = APIRouter(
     tags=["Auth"],
 )
 
+# These versions identify the currently active legal documents.
+# A version change requires users to accept the updated documents again.
 TERMS_VERSION = "2026-09-11"
 PRIVACY_VERSION = "2026-09-11"
 
 
+# Return basic information for the currently authenticated user.
 @router.get("/me")
 def get_current_user(
     auth=Depends(get_authenticated_user),
@@ -27,6 +30,8 @@ def get_current_user(
     }
 
 
+# Check whether the current user has accepted both
+# active legal-document versions.
 @router.get("/legal-acceptance")
 def get_legal_acceptance(
     auth=Depends(get_authenticated_user),
@@ -62,6 +67,8 @@ def get_legal_acceptance(
         ) from error
 
 
+# Record acceptance of the currently active legal documents.
+# Repeated requests remain safe because an existing record is reused.
 @router.post("/legal-acceptance", status_code=204)
 def accept_legal_documents(
     auth=Depends(get_authenticated_user),
@@ -69,6 +76,8 @@ def accept_legal_documents(
     _, user = auth
 
     try:
+        # Avoid inserting another acceptance record when the user
+        # has already accepted these exact document versions.
         existing = (
             supabase_admin
             .table("legal_acceptances")
@@ -83,6 +92,8 @@ def accept_legal_documents(
         if existing.data:
             return Response(status_code=204)
 
+        # Store one UTC timestamp for both documents so the
+        # acceptance event has a consistent server-side time.
         accepted_at = datetime.now(timezone.utc).isoformat()
 
         # Legal acceptance is recorded server-side so users cannot
@@ -116,6 +127,7 @@ def accept_legal_documents(
     return Response(status_code=204)
 
 
+# Permanently remove the currently authenticated account.
 @router.delete("/account", status_code=204)
 def delete_account(
     auth=Depends(get_authenticated_user),

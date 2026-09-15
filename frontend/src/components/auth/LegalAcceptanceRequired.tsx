@@ -23,6 +23,7 @@ function LegalAcceptanceRequired({ onAccepted }: Props) {
   const [error, setError] = useState("");
 
   const handleAccept = async () => {
+    // Require explicit consent and prevent duplicate submissions.
     if (!accepted || submitting) {
       return;
     }
@@ -31,6 +32,7 @@ function LegalAcceptanceRequired({ onAccepted }: Props) {
     setError("");
 
     try {
+      // Persist acceptance of the currently active legal document versions.
       await acceptLegalDocuments();
 
       onAccepted();

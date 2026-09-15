@@ -17,12 +17,15 @@ function SchedulePage() {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Courses are loaded once here and shared between the study
+  // schedule and daily planner views.
   const [courses, setCourses] = useState<Course[]>([]);
 
   const [coursesStatus, setCoursesStatus] = useState<
     "loading" | "ready" | "error"
   >("loading");
 
+  // Incrementing this value triggers another course-loading attempt.
   const [loadAttempt, setLoadAttempt] = useState(0);
 
   usePageTitle("pageTitles.schedule");
@@ -67,6 +70,7 @@ function SchedulePage() {
     };
   }, [loadAttempt]);
 
+  // Reset the loading state before triggering a new request.
   const retryCourses = () => {
     setCoursesStatus("loading");
     setLoadAttempt((currentAttempt) => currentAttempt + 1);

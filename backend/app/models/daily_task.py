@@ -45,13 +45,35 @@ class DailyTaskInput(BaseModel):
     # Used only when the user manually selects multiple dates.
     customDates: list[DateType] = Field(default_factory=list)
 
+    # Run all cross-field validation after Pydantic has parsed
+    # the individual request values into their expected types.
     @model_validator(mode="after")
     def validate_task(self):
+        self.validate_time_range()
         self.validate_reminder()
         self.validate_recurrence()
 
         return self
 
+    # Ensure task time ranges remain logically valid even when
+    # the API is called directly without frontend validation.
+    def validate_time_range(self):
+        if self.endTime is not None and self.startTime is None:
+            raise ValueError(
+                "startTime is required when endTime is provided"
+            )
+
+        if (
+            self.startTime is not None
+            and self.endTime is not None
+            and self.endTime <= self.startTime
+        ):
+            raise ValueError(
+                "endTime must be after startTime"
+            )
+
+    # Validate the relationship between reminder fields and
+    # whether the task itself has a scheduled start time.
     def validate_reminder(self):
         if self.reminder == "none":
             self.reminderTime = None
@@ -85,6 +107,8 @@ class DailyTaskInput(BaseModel):
                 "reminderTime is only allowed for untimed tasks"
             )
 
+    # Validate recurrence-specific values and enforce the
+    # application's maximum 30-day recurrence window.
     def validate_recurrence(self):
         # A normal task does not need recurrence-specific values.
         if self.seriesType == "single":

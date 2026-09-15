@@ -21,11 +21,13 @@ function EditScopeModal({
   const { t } = useTranslation();
 
   return (
+    // Clicking the overlay closes the modal.
     <div className="edit-scope-overlay" onClick={onClose}>
       <div
         className="edit-scope-modal"
         role="dialog"
         aria-modal="true"
+        // Prevent clicks inside the modal from reaching the overlay.
         onClick={(event) => event.stopPropagation()}
       >
         <div className="edit-scope-header">
@@ -45,6 +47,7 @@ function EditScopeModal({
         </div>
 
         <div className="edit-scope-options">
+          {/* Edit only the selected occurrence of this course. */}
           <button
             type="button"
             className="edit-scope-option"
@@ -58,6 +61,7 @@ function EditScopeModal({
             </div>
           </button>
 
+          {/* Edit the shared course data and all of its meetings. */}
           <button
             type="button"
             className="edit-scope-option"

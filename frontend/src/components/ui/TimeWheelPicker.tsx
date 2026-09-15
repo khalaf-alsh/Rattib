@@ -23,13 +23,19 @@ type WheelColumnProps = {
   circular?: boolean;
 };
 
+// Each wheel option has a fixed height so scroll positions
+// can be converted directly into selected item indexes.
 const ITEM_HEIGHT = 44;
 
+// Circular wheels repeat their values several times and keep
+// the user near the middle copy to simulate infinite scrolling.
 const CIRCULAR_COPIES = 7;
 const CIRCULAR_CENTER_COPY = Math.floor(CIRCULAR_COPIES / 2);
 
 const PERIOD_VALUES: Period[] = ["AM", "PM"];
 
+// Wraps an index back into the valid range of the original values.
+// This is used when selecting items from repeated circular copies.
 function getWrappedIndex(index: number, length: number) {
   return ((index % length) + length) % length;
 }
@@ -44,16 +50,22 @@ function WheelColumn({
 }: WheelColumnProps) {
   const wheelRef = useRef<HTMLDivElement>(null);
 
+  // Refs track drag interaction without causing React re-renders
+  // during every pointer movement.
   const isDraggingRef = useRef(false);
   const hasMovedRef = useRef(false);
 
   const startYRef = useRef(0);
   const startScrollTopRef = useRef(0);
 
+  // Timers delay snapping and circular recentering until
+  // the user's scrolling interaction has finished.
   const wheelTimerRef = useRef<number | null>(null);
 
   const recenterTimerRef = useRef<number | null>(null);
 
+  // Prevents a value update from immediately resetting the scroll
+  // position while a smooth user-initiated scroll is still running.
   const suppressNextSyncRef = useRef(false);
 
   // Circular columns repeat their values several times so the user
@@ -66,6 +78,8 @@ function WheelColumn({
     return Array.from({ length: CIRCULAR_COPIES }, () => values).flat();
   }, [circular, values]);
 
+  // Returns the scrollable index that should represent a value.
+  // Circular wheels use the middle repeated copy as their default position.
   const getCenteredIndex = (value: string) => {
     const baseIndex = values.indexOf(value);
 
@@ -80,6 +94,8 @@ function WheelColumn({
     return CIRCULAR_CENTER_COPY * values.length + baseIndex;
   };
 
+  // Keep the wheel position synchronized when the selected value
+  // is changed externally by the parent component.
   useEffect(() => {
     if (suppressNextSyncRef.current) {
       suppressNextSyncRef.current = false;
@@ -99,6 +115,7 @@ function WheelColumn({
     });
   }, [selectedValue, values, circular]);
 
+  // Clear pending timers when the wheel is removed.
   useEffect(() => {
     return () => {
       if (wheelTimerRef.current !== null) {
@@ -111,6 +128,8 @@ function WheelColumn({
     };
   }, []);
 
+  // After circular scrolling finishes, move the selected logical value
+  // back to the center copy so more scrolling remains available both ways.
   const scheduleCircularRecenter = (logicalIndex: number) => {
     if (!circular) {
       return;
@@ -137,6 +156,8 @@ function WheelColumn({
     }, 180);
   };
 
+  // Selects one rendered wheel index, converts circular copies
+  // back to their logical value, and snaps the wheel to that item.
   const selectIndex = (
     rawIndex: number,
     behavior: ScrollBehavior = "smooth",
@@ -171,6 +192,7 @@ function WheelColumn({
     scheduleCircularRecenter(logicalIndex);
   };
 
+  // Rounds the current scroll position to the nearest full option.
   const snapToClosestItem = () => {
     if (!wheelRef.current) {
       return;
@@ -181,6 +203,8 @@ function WheelColumn({
     selectIndex(rawIndex);
   };
 
+  // Starts custom pointer dragging and remembers the wheel's
+  // starting position for manual vertical scrolling.
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!wheelRef.current) {
       return;
@@ -196,6 +220,7 @@ function WheelColumn({
     wheelRef.current.setPointerCapture(event.pointerId);
   };
 
+  // Translate pointer movement into wheel scrolling while dragging.
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!isDraggingRef.current || !wheelRef.current) {
       return;
@@ -210,6 +235,8 @@ function WheelColumn({
     wheelRef.current.scrollTop = startScrollTopRef.current - difference;
   };
 
+  // Finish dragging, release pointer capture, and snap to
+  // the closest valid wheel option.
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!isDraggingRef.current) {
       return;
@@ -224,6 +251,8 @@ function WheelColumn({
     snapToClosestItem();
   };
 
+  // Mouse-wheel scrolling is allowed freely first, then snapped
+  // to the nearest item after a short period of inactivity.
   const handleWheel = () => {
     if (wheelTimerRef.current !== null) {
       window.clearTimeout(wheelTimerRef.current);
@@ -234,6 +263,8 @@ function WheelColumn({
     }, 120);
   };
 
+  // Select an option directly when clicked, unless the click
+  // was generated immediately after a drag interaction.
   const handleItemClick = (value: string, index: number) => {
     if (hasMovedRef.current) {
       hasMovedRef.current = false;
@@ -285,6 +316,8 @@ function WheelColumn({
   );
 }
 
+// Converts an existing stored 24-hour value into 12-hour picker fields.
+// When no value exists, the current local device time is used instead.
 function getInitialTime(value?: string) {
   if (value) {
     const [hour24, minute] = value.split(":").map(Number);
@@ -326,6 +359,7 @@ function TimeWheelPicker({
 
   const isArabic = i18n.language === "ar";
 
+  // Initialize picker state from the saved value or the current time.
   const initialTime = useMemo(() => getInitialTime(value), [value]);
 
   const [hour, setHour] = useState(initialTime.hour);
@@ -334,6 +368,7 @@ function TimeWheelPicker({
 
   const [period, setPeriod] = useState<Period>(initialTime.period);
 
+  // Generate the selectable hour and minute values only once.
   const hours = useMemo(
     () =>
       Array.from({ length: 12 }, (_, index) =>
@@ -348,6 +383,8 @@ function TimeWheelPicker({
     [],
   );
 
+  // AM/PM remain internal values while Arabic displays
+  // their localized short forms to the user.
   const getPeriodLabel = (value: string) => {
     if (isArabic) {
       return value === "AM" ? "ص" : "م";
@@ -356,6 +393,8 @@ function TimeWheelPicker({
     return value;
   };
 
+  // Convert the selected 12-hour picker values back into
+  // the 24-hour HH:MM format used internally by Rattib.
   const handleConfirm = () => {
     let hour24 = Number(hour);
 
@@ -407,6 +446,9 @@ function TimeWheelPicker({
           </button>
         </div>
 
+        {/* Arabic uses period-hour-minute ordering while English
+            uses hour-minute-period, with both wheel bodies kept LTR
+            so numeric scrolling remains consistent. */}
         {isArabic ? (
           <>
             <div className="time-wheel-labels" dir="ltr">

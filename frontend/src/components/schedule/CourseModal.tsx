@@ -5,6 +5,7 @@ import TimeWheelPicker from "../ui/TimeWheelPicker";
 import type { Course, Day, Meeting, NewCourse } from "../../types/schedule";
 import "./CourseModal.css";
 
+// Keep selectable course days in calendar order.
 const days: Day[] = [
   "sunday",
   "monday",
@@ -43,6 +44,8 @@ type Conflict = {
   endTime: string;
 };
 
+// Convert stored 24-hour values into the 12-hour value and
+// AM/PM period expected by the custom time picker.
 const convertFrom24Hour = (time: string) => {
   if (!time) {
     return {
@@ -80,8 +83,11 @@ function CourseModal({
 }: CourseModalProps) {
   const { t, i18n } = useTranslation();
 
+  // Single-meeting editing keeps course-level information read-only.
   const editingSingleMeeting = mode === "edit-meeting";
 
+  // Use the selected meeting when editing one occurrence, otherwise
+  // use the first course meeting to initialize the shared time fields.
   const baseMeeting =
     mode === "edit-meeting" ? initialMeeting : initialCourse?.meetings[0];
 
@@ -89,6 +95,8 @@ function CourseModal({
 
   const initialEnd = convertFrom24Hour(baseMeeting?.endTime ?? "");
 
+  // A single-meeting edit starts with one day, while a full-course
+  // edit restores every distinct day currently used by the course.
   const initialDays: Day[] =
     mode === "edit-meeting" && initialMeeting
       ? [initialMeeting.day]
@@ -112,7 +120,9 @@ function CourseModal({
 
   const [endPeriod, setEndPeriod] = useState<"am" | "pm">(initialEnd.period);
 
-  const [activeTimePicker, setActiveTimePicker] = useState<"start" | "end" | null>(null);
+  const [activeTimePicker, setActiveTimePicker] = useState<
+    "start" | "end" | null
+  >(null);
   const [doctor, setDoctor] = useState(initialCourse?.doctor ?? "");
 
   const [section, setSection] = useState(initialCourse?.section ?? "");
@@ -126,6 +136,8 @@ function CourseModal({
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
 
   const conflictRef = useRef<HTMLDivElement>(null);
+
+  // Bring detected conflicts into view after the warning is rendered.
   useEffect(() => {
     if (conflicts.length === 0) {
       return;
@@ -143,6 +155,8 @@ function CourseModal({
     };
   }, [conflicts]);
 
+  // Single-meeting mode allows exactly one selected day, while
+  // full-course modes allow multiple meeting days.
   const toggleDay = (day: Day) => {
     if (editingSingleMeeting) {
       setSelectedDays([day]);
@@ -162,6 +176,7 @@ function CourseModal({
     setConflicts([]);
   };
 
+  // Validate the 12-hour value before converting it for storage.
   const isValidTime = (time: string) => {
     const [hourText, minuteText] = time.split(":");
 
@@ -182,6 +197,8 @@ function CourseModal({
     );
   };
 
+  // Convert the picker value into zero-padded 24-hour format
+  // used by the API, database, sorting, and conflict detection.
   const convertTo24Hour = (time: string, period: "am" | "pm") => {
     const [hourText, minuteText] = time.split(":");
 
@@ -203,12 +220,15 @@ function CourseModal({
     return `${formattedHour}:${formattedMinute}`;
   };
 
+  // Convert a 24-hour clock value into minutes from midnight
+  // so time ranges can be compared numerically.
   const timeToMinutes = (time: string) => {
     const [hour, minute] = time.split(":").map(Number);
 
     return hour * 60 + minute;
   };
 
+  // Display stored times using the active interface language.
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(":").map(Number);
 
@@ -223,6 +243,7 @@ function CourseModal({
     }).format(date);
   };
 
+  // Exclude the meeting currently being edited from conflict checks.
   const isOriginalMeeting = (meeting: Meeting) => {
     if (mode !== "edit-meeting" || !initialMeeting) {
       return false;
@@ -235,6 +256,8 @@ function CourseModal({
     );
   };
 
+  // Compare the proposed meeting range against existing meetings
+  // on every selected day and collect all overlapping entries.
   const findConflicts = (startTime24: string, endTime24: string) => {
     const newStart = timeToMinutes(startTime24);
 
@@ -249,6 +272,8 @@ function CourseModal({
             return;
           }
 
+          // A full-course edit replaces the course's existing meetings,
+          // so those meetings should not conflict with their replacement.
           if (
             mode === "edit-course" &&
             initialCourse &&
@@ -270,6 +295,8 @@ function CourseModal({
 
           const existingEnd = timeToMinutes(meeting.endTime);
 
+          // Adjacent meetings are allowed; only actual time overlap
+          // counts as a scheduling conflict.
           const overlaps = newStart < existingEnd && newEnd > existingStart;
 
           if (overlaps) {
@@ -287,6 +314,7 @@ function CourseModal({
     return foundConflicts;
   };
 
+  // Build the API-ready course object from the current form state.
   const saveCourse = (startTime24: string, endTime24: string) => {
     const newCourse: NewCourse = {
       name: courseName.trim(),
@@ -310,6 +338,8 @@ function CourseModal({
     onClose();
   };
 
+  // Validate required fields and time ordering before checking
+  // whether the proposed schedule overlaps existing meetings.
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
 
@@ -356,6 +386,8 @@ function CourseModal({
 
     const foundConflicts = findConflicts(startTime24, endTime24);
 
+    // Show detected conflicts before saving so the user can
+    // review them and choose whether to continue anyway.
     if (foundConflicts.length > 0) {
       setConflicts(foundConflicts);
       return;
@@ -453,8 +485,16 @@ function CourseModal({
               {t("startTime")} <span className="required">*</span>
             </label>
 
-            <button type="button" className="course-time-button" aria-label={t("startTime")} aria-invalid={!!errors.startTime} onClick={() => setActiveTimePicker("start")}>
-              {startTime ? formatTime(convertTo24Hour(startTime, startPeriod)) : t("dailyTask.selectTime")}
+            <button
+              type="button"
+              className="course-time-button"
+              aria-label={t("startTime")}
+              aria-invalid={!!errors.startTime}
+              onClick={() => setActiveTimePicker("start")}
+            >
+              {startTime
+                ? formatTime(convertTo24Hour(startTime, startPeriod))
+                : t("dailyTask.selectTime")}
             </button>
 
             {errors.startTime && (
@@ -467,8 +507,16 @@ function CourseModal({
               {t("endTime")} <span className="required">*</span>
             </label>
 
-            <button type="button" className="course-time-button" aria-label={t("endTime")} aria-invalid={!!errors.endTime} onClick={() => setActiveTimePicker("end")}>
-              {endTime ? formatTime(convertTo24Hour(endTime, endPeriod)) : t("dailyTask.selectTime")}
+            <button
+              type="button"
+              className="course-time-button"
+              aria-label={t("endTime")}
+              aria-invalid={!!errors.endTime}
+              onClick={() => setActiveTimePicker("end")}
+            >
+              {endTime
+                ? formatTime(convertTo24Hour(endTime, endPeriod))
+                : t("dailyTask.selectTime")}
             </button>
 
             {errors.endTime && (
@@ -584,18 +632,38 @@ function CourseModal({
             )}
           </div>
         </form>
-        {activeTimePicker && <TimeWheelPicker
-          title={t(activeTimePicker === "start" ? "startTime" : "endTime")}
-          value={activeTimePicker === "start" ? (startTime ? convertTo24Hour(startTime, startPeriod) : undefined) : (endTime ? convertTo24Hour(endTime, endPeriod) : undefined)}
-          onClose={() => setActiveTimePicker(null)}
-          onConfirm={(value) => {
-            const converted = convertFrom24Hour(value);
-            if (activeTimePicker === "start") { setStartTime(converted.time); setStartPeriod(converted.period); }
-            else { setEndTime(converted.time); setEndPeriod(converted.period); }
-            setErrors((current) => ({ ...current, startTime: undefined, endTime: undefined }));
-            setConflicts([]); setActiveTimePicker(null);
-          }}
-        />}
+        {activeTimePicker && (
+          <TimeWheelPicker
+            title={t(activeTimePicker === "start" ? "startTime" : "endTime")}
+            value={
+              activeTimePicker === "start"
+                ? startTime
+                  ? convertTo24Hour(startTime, startPeriod)
+                  : undefined
+                : endTime
+                  ? convertTo24Hour(endTime, endPeriod)
+                  : undefined
+            }
+            onClose={() => setActiveTimePicker(null)}
+            onConfirm={(value) => {
+              const converted = convertFrom24Hour(value);
+              if (activeTimePicker === "start") {
+                setStartTime(converted.time);
+                setStartPeriod(converted.period);
+              } else {
+                setEndTime(converted.time);
+                setEndPeriod(converted.period);
+              }
+              setErrors((current) => ({
+                ...current,
+                startTime: undefined,
+                endTime: undefined,
+              }));
+              setConflicts([]);
+              setActiveTimePicker(null);
+            }}
+          />
+        )}
       </div>
     </div>
   );

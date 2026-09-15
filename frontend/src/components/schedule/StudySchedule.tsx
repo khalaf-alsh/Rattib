@@ -1,5 +1,11 @@
 import { Plus, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import Toast from "../ui/Toast";
 import { useTranslation } from "react-i18next";
 import CourseCard from "./CourseCard";
@@ -17,6 +23,7 @@ import {
 import type { Course, Day, Meeting, NewCourse } from "../../types/schedule";
 import "./StudySchedule.css";
 
+// Keep the schedule in calendar order for both day and week views.
 const days: Day[] = [
   "sunday",
   "monday",
@@ -49,10 +56,19 @@ type EditChoiceState = {
   meeting: Meeting;
 } | null;
 
-type StudyScheduleProps = { courses: Course[]; setCourses: Dispatch<SetStateAction<Course[]>>; coursesReady: boolean };
-function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps) {
+type StudyScheduleProps = {
+  courses: Course[];
+  setCourses: Dispatch<SetStateAction<Course[]>>;
+  coursesReady: boolean;
+};
+function StudySchedule({
+  courses,
+  setCourses,
+  coursesReady,
+}: StudyScheduleProps) {
   const { t, i18n } = useTranslation();
 
+  // Open the day view on the user's current weekday.
   const [selectedDay, setSelectedDay] = useState<Day>(() => {
     const todayIndex = new Date().getDay();
 
@@ -62,6 +78,8 @@ function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps
   const [scheduleView, setScheduleView] = useState<ScheduleView>("day");
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Automatically dismiss success messages after a short delay.
   useEffect(() => {
     if (!toastMessage) {
       return;
@@ -86,10 +104,14 @@ function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps
   const [deleteScheduleOpen, setDeleteScheduleOpen] = useState(false);
   const [deletingSchedule, setDeletingSchedule] = useState(false);
   const [deleteScheduleError, setDeleteScheduleError] = useState(false);
+
+  // Prevent duplicate delete-all requests while the asynchronous
+  // operation is still running.
   const deletingScheduleRef = useRef(false);
 
   const handleDeleteSchedule = async () => {
-    if (deletingScheduleRef.current || !coursesReady || courses.length === 0) return;
+    if (deletingScheduleRef.current || !coursesReady || courses.length === 0)
+      return;
     deletingScheduleRef.current = true;
     setDeletingSchedule(true);
     setDeleteScheduleError(false);
@@ -97,7 +119,9 @@ function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps
       // Remove only confirmed deletions from the shared state.
       for (const course of courses) {
         await deleteCourse(course.id);
-        setCourses((current) => current.filter((item) => item.id !== course.id));
+        setCourses((current) =>
+          current.filter((item) => item.id !== course.id),
+        );
       }
       setDeleteScheduleOpen(false);
       setToastMessage(t("deleteSchedule.success"));
@@ -114,6 +138,7 @@ function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps
     try {
       await deleteCourse(courseId);
 
+      // Update local state only after the backend confirms deletion.
       setCourses((currentCourses) =>
         currentCourses.filter((course) => course.id !== courseId),
       );
@@ -132,6 +157,8 @@ function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps
     try {
       await deleteCourseMeeting(courseId, meetingToDelete);
 
+      // Remove only the selected meeting while preserving the
+      // remaining meetings that belong to the same course.
       setCourses((currentCourses) =>
         currentCourses
           .map((course) => {
@@ -156,6 +183,8 @@ function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps
     }
   };
 
+  // Flatten course meetings for one day and display them
+  // chronologically by their stored 24-hour start time.
   const getCoursesForDay = (day: Day) => {
     return courses
       .flatMap((course) =>
@@ -169,6 +198,7 @@ function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps
       .sort((a, b) => a.meeting.startTime.localeCompare(b.meeting.startTime));
   };
 
+  // Convert stored 24-hour values into localized 12-hour display text.
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(":").map(Number);
 
@@ -187,6 +217,8 @@ function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps
     try {
       const savedCourse = await createCourse(newCourse);
 
+      // Use the server-returned course so local state matches
+      // the persisted record, including its generated ID.
       setCourses((currentCourses) => [...currentCourses, savedCourse]);
 
       setToastMessage(t("courseAdded"));
@@ -194,6 +226,7 @@ function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps
       console.error("Failed to add course:", error);
     }
   };
+
   const handleUpdateCourse = async (
     courseId: number,
     updatedCourse: NewCourse,
@@ -201,6 +234,7 @@ function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps
     try {
       const savedCourse = await updateCourse(courseId, updatedCourse);
 
+      // Replace only the updated course in the shared schedule state.
       setCourses((currentCourses) =>
         currentCourses.map((course) =>
           course.id === courseId ? savedCourse : course,
@@ -213,6 +247,8 @@ function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps
     }
   };
 
+  // Meetings do not have their own frontend ID, so their original
+  // schedule values are used to identify the exact meeting.
   const sameMeeting = (first: Meeting, second: Meeting) => {
     return (
       first.day === second.day &&
@@ -239,6 +275,8 @@ function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps
         updatedMeeting,
       );
 
+      // Replace only the first matching meeting and leave every
+      // other meeting for the course untouched.
       setCourses((currentCourses) =>
         currentCourses.map((course) => {
           if (course.id !== courseId) {
@@ -270,6 +308,8 @@ function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps
     }
   };
 
+  // Courses with multiple meetings first ask whether the user wants
+  // to edit only this meeting or the entire course.
   const requestEdit = (course: Course, meeting: Meeting) => {
     if (course.meetings.length > 1) {
       setEditChoice({
@@ -288,6 +328,8 @@ function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps
 
   const selectedDayCourses = getCoursesForDay(selectedDay);
 
+  // Route the modal result to the correct create or update operation
+  // based on the mode that originally opened the modal.
   const handleModalSave = (updatedCourse: NewCourse) => {
     if (!courseModalState) {
       return;
@@ -450,7 +492,8 @@ function StudySchedule({ courses, setCourses, coursesReady }: StudyScheduleProps
 
       <div className="schedule-actions schedule-actions-with-delete">
         <button
-          className="add-course-button" disabled={!coursesReady}
+          className="add-course-button"
+          disabled={!coursesReady}
           type="button"
           onClick={() =>
             setCourseModalState({

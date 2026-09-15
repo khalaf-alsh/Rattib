@@ -17,6 +17,8 @@ type BackendCourse = {
   meetings: BackendMeeting[];
 };
 
+// Load the authenticated user's courses and convert backend
+// field names into the frontend schedule structure.
 export async function getCourses(): Promise<Course[]> {
   const response = await apiFetch("/api/courses");
 
@@ -38,12 +40,15 @@ export async function getCourses(): Promise<Course[]> {
     meetings: course.meetings.map((meeting) => ({
       day: meeting.day,
 
+      // PostgreSQL time values may include seconds, while the
+      // frontend schedule uses HH:MM values.
       startTime: meeting.start_time.slice(0, 5),
       endTime: meeting.end_time.slice(0, 5),
     })),
   }));
 }
 
+// Create a course and normalize the server response for frontend use.
 export async function createCourse(newCourse: NewCourse): Promise<Course> {
   const response = await apiFetch("/api/courses", {
     method: "POST",
@@ -73,6 +78,8 @@ export async function createCourse(newCourse: NewCourse): Promise<Course> {
   };
 }
 
+// Replace a course and its meeting list, then normalize
+// the updated server response for local state.
 export async function updateCourse(
   courseId: number,
   updatedCourse: NewCourse,
@@ -104,6 +111,8 @@ export async function updateCourse(
   };
 }
 
+// Update one meeting by sending both its original values
+// and the replacement values to the backend.
 export async function updateCourseMeeting(
   courseId: number,
   originalMeeting: Meeting,
@@ -129,6 +138,8 @@ export async function updateCourseMeeting(
     endTime: meeting.end_time.slice(0, 5),
   };
 }
+
+// Delete an entire course and its related meetings.
 export async function deleteCourse(courseId: number): Promise<void> {
   const response = await apiFetch(`/api/courses/${courseId}`, {
     method: "DELETE",
@@ -139,6 +150,8 @@ export async function deleteCourse(courseId: number): Promise<void> {
   }
 }
 
+// Delete one exact meeting using its day and original time range
+// as query parameters.
 export async function deleteCourseMeeting(
   courseId: number,
   meeting: Meeting,

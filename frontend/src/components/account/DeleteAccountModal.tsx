@@ -21,6 +21,8 @@ function DeleteAccountModal({
 
   const dialogRef = useRef<HTMLDivElement>(null);
 
+  // Move focus into the confirmation dialog when it opens,
+  // then restore the user's previous focus when it closes.
   useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null;
 
@@ -35,6 +37,7 @@ function DeleteAccountModal({
     <div
       className="delete-scope-overlay"
       onClick={() => {
+        // Prevent accidental closing while account deletion is in progress.
         if (!deleting) {
           onClose();
         }
@@ -51,11 +54,42 @@ function DeleteAccountModal({
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
+          // Allow Escape to close the dialog only when no deletion is running.
           if (event.key === "Escape") {
             event.stopPropagation();
 
             if (!deleting) {
               onClose();
+            }
+          }
+
+          // Keep keyboard focus inside the modal while it is open.
+          if (event.key === "Tab") {
+            const buttons = Array.from(
+              event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                "button:not(:disabled)",
+              ),
+            );
+
+            const first = buttons[0];
+            const last = buttons[buttons.length - 1];
+
+            if (!first) {
+              event.preventDefault();
+            } else if (
+              event.shiftKey &&
+              (document.activeElement === first ||
+                document.activeElement === event.currentTarget)
+            ) {
+              event.preventDefault();
+              last.focus();
+            } else if (
+              !event.shiftKey &&
+              (document.activeElement === last ||
+                document.activeElement === event.currentTarget)
+            ) {
+              event.preventDefault();
+              first.focus();
             }
           }
         }}
@@ -67,6 +101,7 @@ function DeleteAccountModal({
         <div className="delete-confirmation">
           <p id="delete-account-description">{t("deleteAccount.message")}</p>
 
+          {/* Announce deletion failures immediately to assistive technologies. */}
           {error && (
             <p className="delete-schedule-error" role="alert">
               {t("deleteAccount.error")}
@@ -91,6 +126,7 @@ function DeleteAccountModal({
             >
               <Trash2 size={18} />
 
+              {/* Announce the button state change while deletion is running. */}
               <span aria-live="polite">
                 {t(
                   deleting ? "deleteAccount.deleting" : "deleteAccount.confirm",

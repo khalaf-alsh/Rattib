@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 
 import "./AccountFooter.css";
 
+// Keep public contact details in one place so the footer links
+// stay consistent and easy to update.
 const CONTACT_EMAIL = "khratteb@gmail.com";
 const CONTACT_PHONE_DISPLAY = "+966 57 419 0069";
 const CONTACT_WHATSAPP_URL = "https://wa.me/966574190069";

@@ -7,6 +7,8 @@ import { BrowserRouter } from "react-router-dom";
 import "./i18n";
 import { AuthProvider } from "./context/AuthContext";
 
+// Mount the application and provide routing and authentication
+// context to every page and component.
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>

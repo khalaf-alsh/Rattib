@@ -19,6 +19,9 @@ router = APIRouter(
     tags=["Daily Tasks"],
 )
 
+
+# Normalize Supabase time values before comparing them
+# with the HH:MM values produced by the frontend.
 def normalize_db_time(value: str | None) -> str | None:
     # Normalize Supabase time values such as "21:30:00" to "21:30"
     # so they can be compared with the incoming task values.
@@ -27,6 +30,9 @@ def normalize_db_time(value: str | None) -> str | None:
 
     return value[:5]
 
+
+# Build every database occurrence required by the selected
+# recurrence type before the task or series is inserted.
 def build_occurrence_dates(task: DailyTaskInput):
     # Build all dates for a recurring task.
     # The task's own date is always the first occurrence.
@@ -65,6 +71,9 @@ def build_occurrence_dates(task: DailyTaskInput):
 
     return [task.date]
 
+
+# Return all daily tasks available to the authenticated user.
+# Supabase RLS uses the user's access token to restrict the rows.
 @router.get("")
 async def get_daily_tasks(
     auth=Depends(get_authenticated_user),
@@ -76,6 +85,8 @@ async def get_daily_tasks(
         "Authorization": f"Bearer {access_token}",
     }
 
+    # Request only the fields required by the daily planner
+    # and return tasks chronologically.
     params = {
         "select": (
             "id,"
@@ -88,8 +99,8 @@ async def get_daily_tasks(
             "reminder_time,"
             "reminder_at,"
             "time_zone,"
-                "series_id,"
-    "series_type,"
+            "series_id,"
+            "series_type,"
             "completed"
         ),
         "order": "task_date.asc,start_time.asc",
@@ -111,6 +122,7 @@ async def get_daily_tasks(
     return response.json()
 
 
+# Create either one task or all occurrences of a recurring series.
 @router.post("", status_code=201)
 async def create_daily_task(
     task: DailyTaskInput,
@@ -125,8 +137,12 @@ async def create_daily_task(
         "Prefer": "return=representation",
     }
 
+    # Recurrence is expanded into individual database rows so every
+    # occurrence can later be completed, edited, or deleted independently.
     occurrence_dates = build_occurrence_dates(task)
 
+    # All occurrences created together share one UUID.
+    # Normal single tasks do not require a series identifier.
     series_id = (
         str(uuid4())
         if task.seriesType != "single"
@@ -153,6 +169,8 @@ async def create_daily_task(
                 detail=str(error),
             )
 
+        # Each recurrence occurrence is stored as a complete task row
+        # while sharing the same series metadata.
         task_data = {
             "user_id": user.id,
             "title": task.title,
@@ -186,6 +204,7 @@ async def create_daily_task(
                 else None
             ),
 
+            # New or rescheduled reminders must begin in the unsent state.
             "reminder_sent_at": None,
 
             "time_zone": task.timeZone,
@@ -226,6 +245,9 @@ async def create_daily_task(
     # controls are added.
     return created_rows[0]
 
+
+# Update either one occurrence or every task belonging to
+# the selected recurring series.
 @router.put("/{task_id}")
 async def update_daily_task(
     task_id: int,
@@ -242,6 +264,8 @@ async def update_daily_task(
         "Prefer": "return=representation",
     }
 
+    # Convert Pydantic time values into the same HH:MM format
+    # used for comparisons and Supabase updates.
     new_start_time = (
         task.startTime.isoformat(timespec="minutes")
         if task.startTime
@@ -331,9 +355,13 @@ async def update_daily_task(
                     detail="Daily task series not found",
                 )
 
+            # The endpoint still returns the occurrence originally
+            # selected by the user after all rows have been updated.
             updated_selected_task = None
 
             for existing_task in series_rows:
+                # Recalculate reminder timestamps only when a value
+                # that affects reminder scheduling has changed.
                 reminder_schedule_changed = any(
                     [
                         normalize_db_time(
@@ -351,6 +379,8 @@ async def update_daily_task(
                     ]
                 )
 
+                # The occurrence's own task_date is intentionally omitted
+                # so editing a series does not move every row to one date.
                 task_data = {
                     "title": task.title,
                     "start_time": new_start_time,
@@ -396,8 +426,12 @@ async def update_daily_task(
                         else None
                     )
 
+                    # Reset delivery state whenever a reminder schedule
+                    # is changed so eligible future reminders can fire again.
                     task_data["reminder_sent_at"] = None
 
+                # Series updates are applied one occurrence at a time
+                # because reminder timestamps depend on each row's date.
                 response = await client.patch(
                     f"{SUPABASE_URL}/rest/v1/daily_tasks",
                     headers=headers,
@@ -433,6 +467,7 @@ async def update_daily_task(
             return updated_selected_task
 
         # Update only the selected occurrence.
+        # Changes that affect scheduling require a new reminder_at value.
         reminder_schedule_changed = any(
             [
                 selected_task["task_date"]
@@ -478,6 +513,7 @@ async def update_daily_task(
                 else None
             )
 
+            # Allow the newly calculated reminder to be delivered.
             task_data["reminder_sent_at"] = None
 
         response = await client.patch(
@@ -505,6 +541,9 @@ async def update_daily_task(
 
     return updated_rows[0]
 
+
+# Update only the completion state of one task occurrence.
+# Completing one recurring occurrence does not affect the rest of its series.
 @router.patch("/{task_id}/completion")
 async def update_daily_task_completion(
     task_id: int,
@@ -546,6 +585,8 @@ async def update_daily_task_completion(
     return updated_rows[0]
 
 
+# Delete either one task occurrence or every occurrence
+# belonging to the same recurring series.
 @router.delete("/{task_id}", status_code=204)
 async def delete_daily_task(
     task_id: int,

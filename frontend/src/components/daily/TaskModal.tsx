@@ -23,6 +23,8 @@ type TaskModalProps = {
   onSave: (task: DailyTaskInput, scope: "single" | "series") => Promise<void>;
 };
 
+// Converts a local Date into the YYYY-MM-DD format
+// expected by the daily-task API.
 function formatDateKey(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -31,6 +33,7 @@ function formatDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+// Returns a new Date shifted by the requested number of days.
 function addDays(date: Date, days: number) {
   const result = new Date(date);
 
@@ -39,6 +42,8 @@ function addDays(date: Date, days: number) {
   return result;
 }
 
+// Maps predefined reminder choices to the number of minutes
+// that should be subtracted from the task's start time.
 const REMINDER_OFFSETS_MINUTES: Partial<Record<TaskReminder, number>> = {
   atTime: 0,
   "10Minutes": 10,
@@ -47,6 +52,8 @@ const REMINDER_OFFSETS_MINUTES: Partial<Record<TaskReminder, number>> = {
   "1Hour": 60,
 };
 
+// Combines a calendar date and stored 24-hour time value
+// into one local Date object.
 function createLocalDateTime(date: Date, time: string) {
   const [hours, minutes] = time.split(":").map(Number);
 
@@ -57,6 +64,8 @@ function createLocalDateTime(date: Date, time: string) {
   return result;
 }
 
+// Calculates the exact local date and time when a reminder
+// should be triggered for validation before the task is saved.
 function calculateReminderDate(
   date: Date,
   startTime: string,
@@ -102,10 +111,16 @@ function TaskModal({
 
   const isArabic = i18n.language === "ar";
   const locale = isArabic ? "ar-SA" : "en-US";
+
+  // Saving and deleting states prevent duplicate requests
+  // while an asynchronous operation is already in progress.
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
   const [title, setTitle] = useState(task?.title ?? "");
 
+  // Existing tasks restore their saved date, while new tasks
+  // begin on the date currently selected in the planner.
   const [taskDate, setTaskDate] = useState(() => {
     if (!task) {
       return selectedDate;
@@ -138,9 +153,13 @@ function TaskModal({
 
   const [reminderTime, setReminderTime] = useState(task?.reminderTime ?? "");
 
+  // Separate confirmation states are used for deleting recurring tasks
+  // and choosing the scope of edits to an existing series.
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmEditScope, setConfirmEditScope] = useState(false);
 
+  // Temporarily stores validated form data while the user chooses
+  // whether an edit applies to one occurrence or the entire series.
   const [pendingTaskInput, setPendingTaskInput] =
     useState<DailyTaskInput | null>(null);
 
@@ -148,10 +167,13 @@ function TaskModal({
 
   const [error, setError] = useState("");
 
+  // Only one time picker can be active at a time.
   const [activeTimePicker, setActiveTimePicker] = useState<
     "start" | "end" | "reminder" | null
   >(null);
 
+  // Deletes either the current task occurrence or its full series,
+  // depending on the scope selected in the confirmation dialog.
   const handleDelete = async (scope: "single" | "series") => {
     if (!onDelete || isDeleting) {
       return;
@@ -165,6 +187,7 @@ function TaskModal({
       setIsDeleting(false);
     }
   };
+
   const formattedDate = taskDate.toLocaleDateString(locale, {
     calendar: "gregory",
     weekday: "long",
@@ -173,6 +196,8 @@ function TaskModal({
     year: "numeric",
   });
 
+  // Converts internally stored 24-hour time values into the
+  // localized 12-hour format shown to the user.
   const formatTimeForDisplay = (time: string) => {
     const [hourValue, minute] = time.split(":").map(Number);
 
@@ -184,11 +209,15 @@ function TaskModal({
     return `${hour}:${minute.toString().padStart(2, "0")} ${period}`;
   };
 
+  // Clears both the reminder type and any custom reminder time
+  // when the task timing no longer supports the current reminder.
   const resetReminder = () => {
     setReminder("none");
     setReminderTime("");
   };
 
+  // Changing away from a custom reminder removes its previous
+  // custom time so stale values are not submitted later.
   const handleReminderChange = (value: TaskReminder) => {
     setReminder(value);
     setError("");
@@ -198,6 +227,8 @@ function TaskModal({
     }
   };
 
+  // Recurring and custom-date tasks are limited to 30 days
+  // from the task's starting date.
   const maxRepeatDate = addDays(taskDate, 30);
 
   const formattedRepeatUntil = repeatUntil?.toLocaleDateString(locale, {
@@ -208,6 +239,8 @@ function TaskModal({
     year: "numeric",
   });
 
+  // Reset recurrence-specific state whenever the user changes
+  // to a different recurrence mode.
   const handleSeriesTypeChange = (value: TaskSeriesType) => {
     setSeriesType(value);
     setError("");
@@ -223,6 +256,8 @@ function TaskModal({
     }
   };
 
+  // Sends already validated task data using the requested edit scope
+  // while preventing duplicate save requests.
   const handleSaveWithScope = async (
     taskInput: DailyTaskInput,
     scope: "single" | "series",
@@ -240,6 +275,8 @@ function TaskModal({
     }
   };
 
+  // Validates the complete task form, builds the API payload,
+  // and either saves immediately or asks for a recurring-series scope.
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
@@ -265,6 +302,8 @@ function TaskModal({
       return;
     }
 
+    // Reject reminders that would already have occurred
+    // at the moment the form is submitted.
     if (reminder !== "none") {
       const reminderDate = calculateReminderDate(
         taskDate,
@@ -279,6 +318,8 @@ function TaskModal({
       }
     }
 
+    // Daily and weekly recurrence require a valid ending date
+    // within the application's supported recurrence window.
     if (!task && (seriesType === "daily" || seriesType === "weekly")) {
       if (!repeatUntil) {
         setError("dailyTask.errors.repeatUntilRequired");
@@ -301,6 +342,8 @@ function TaskModal({
       return;
     }
 
+    // The user's IANA time zone is stored only when reminders
+    // are enabled so the backend can schedule them correctly.
     const timeZone =
       reminder !== "none"
         ? Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -338,6 +381,8 @@ function TaskModal({
           : undefined,
     };
 
+    // Existing recurring tasks require the user to explicitly choose
+    // whether the edit affects this occurrence or the entire series.
     if (task?.seriesId) {
       setPendingTaskInput(taskInput);
       setConfirmEditScope(true);
@@ -362,6 +407,8 @@ function TaskModal({
 
           event.stopPropagation();
 
+          // Escape closes the deepest active dialog or picker first
+          // before closing the main task modal itself.
           if (confirmDelete) {
             setConfirmDelete(false);
           } else if (confirmEditScope) {
@@ -709,6 +756,8 @@ function TaskModal({
           </div>
         </form>
 
+        {/* Recurring tasks allow deletion of either the selected
+            occurrence or the complete series. */}
         {confirmDelete && (
           <div
             className="delete-scope-overlay"
@@ -794,6 +843,8 @@ function TaskModal({
           </div>
         )}
 
+        {/* Editing a recurring task requires choosing whether the
+            change applies to one occurrence or the complete series. */}
         {confirmEditScope && pendingTaskInput && (
           <div
             className="delete-scope-overlay"
@@ -864,6 +915,8 @@ function TaskModal({
           </div>
         )}
 
+        {/* Clearing a start time also clears dependent values such as
+            the end time and any reminder based on the task start. */}
         {activeTimePicker === "start" && (
           <TimeWheelPicker
             title={t("dailyTask.startTime")}

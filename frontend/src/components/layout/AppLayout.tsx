@@ -8,6 +8,7 @@ function AppLayout() {
       <div className="app-main">
         <Header />
 
+        {/* Render the currently matched protected page inside the shared layout. */}
         <main className="page-content">
           <Outlet />
         </main>

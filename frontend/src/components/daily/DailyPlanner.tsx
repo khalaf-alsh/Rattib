@@ -11,6 +11,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
 import type { DailyTask, DailyTaskInput } from "../../types/dailyPlanner";
 import {
   createDailyTask,
@@ -19,11 +20,15 @@ import {
   updateDailyTask,
   updateDailyTaskCompletion,
 } from "../../services/dailyTaskService";
+
 import type { Course, Day, Meeting } from "../../types/schedule";
+
 import CalendarPicker from "./CalendarPicker";
-import "./DailyPlanner.css";
 import TaskModal from "./TaskModal";
 
+import "./DailyPlanner.css";
+
+// Returns the Sunday that starts the week containing the given date.
 function getStartOfWeek(date: Date) {
   const result = new Date(date);
 
@@ -33,6 +38,8 @@ function getStartOfWeek(date: Date) {
   return result;
 }
 
+// Creates a new date by moving the supplied date forward
+// or backward by the requested number of days.
 function addDays(date: Date, days: number) {
   const result = new Date(date);
 
@@ -41,6 +48,7 @@ function addDays(date: Date, days: number) {
   return result;
 }
 
+// Compares calendar dates while ignoring their time values.
 function isSameDay(firstDate: Date, secondDate: Date) {
   return (
     firstDate.getFullYear() === secondDate.getFullYear() &&
@@ -49,6 +57,8 @@ function isSameDay(firstDate: Date, secondDate: Date) {
   );
 }
 
+// Converts a local Date into the YYYY-MM-DD format
+// used by daily tasks throughout the application.
 function formatDateKey(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -57,9 +67,14 @@ function formatDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+// Timed tasks and course meetings share one timeline and are
+// distinguished by the "kind" field when rendered.
 type TimelineEntry =
   | { kind: "task"; startTime: string; task: DailyTask }
   | { kind: "course"; startTime: string; course: Course; meeting: Meeting };
+
+// JavaScript's getDay() uses Sunday as index 0, so this array
+// maps each numeric day index to Rattib's schedule day values.
 const days: Day[] = [
   "sunday",
   "monday",
@@ -69,18 +84,27 @@ const days: Day[] = [
   "friday",
   "saturday",
 ];
+
 function DailyPlanner({ courses }: { courses: Course[] }) {
   const { t, i18n } = useTranslation();
 
   const isArabic = i18n.language === "ar";
   const locale = isArabic ? "ar-SA" : "en-US";
 
+  // Keep the original "today" value stable while the component is mounted
+  // so navigation does not change the reference day unexpectedly.
   const today = useMemo(() => new Date(), []);
+
   const [selectedDate, setSelectedDate] = useState(today);
   const [weekStart, setWeekStart] = useState(() => getStartOfWeek(today));
+
   const [calendarOpen, setCalendarOpen] = useState(false);
+
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<DailyTask | null>(null);
+
+  // Creates a new task or updates an existing occurrence/series,
+  // then reloads tasks so recurring changes are reflected correctly.
   const handleSaveTask = async (
     taskInput: DailyTaskInput,
     scope: "single" | "series",
@@ -109,6 +133,8 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
       setTaskModalOpen(false);
       setEditingTask(null);
 
+      // Move the planner to the saved task's date so the result
+      // is immediately visible after creating or editing it.
       const [year, month, day] = savedTask.date.split("-").map(Number);
 
       const taskDate = new Date(year, month - 1, day);
@@ -119,6 +145,8 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
       console.error("Failed to save daily task:", error);
     }
   };
+
+  // Generate the seven visible dates for the currently displayed week.
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
     [weekStart],
@@ -137,6 +165,8 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
     month: "long",
   });
 
+  // Week navigation keeps the selected date on the equivalent
+  // weekday while moving backward or forward by seven days.
   const handlePreviousWeek = () => {
     setWeekStart((current) => addDays(current, -7));
     setSelectedDate((current) => addDays(current, -7));
@@ -147,6 +177,8 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
     setSelectedDate((current) => addDays(current, 7));
   };
 
+  // Selecting a calendar date also moves the week strip
+  // to the week containing that date.
   const handleCalendarDateSelect = (date: Date) => {
     setSelectedDate(date);
     setWeekStart(getStartOfWeek(date));
@@ -154,6 +186,9 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
   };
 
   const [tasks, setTasks] = useState<DailyTask[]>([]);
+
+  // Load the authenticated user's saved daily tasks when
+  // the planner is mounted.
   useEffect(() => {
     let active = true;
 
@@ -167,11 +202,15 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
         console.error("Failed to load daily tasks:", error);
       });
 
+    // Prevent an outdated asynchronous request from updating state
+    // after the component has already been unmounted.
     return () => {
       active = false;
     };
   }, []);
 
+  // Toggles completion for one task occurrence and replaces
+  // only that task in local state with the backend response.
   const toggleTask = async (taskId: number) => {
     const task = tasks.find((currentTask) => currentTask.id === taskId);
 
@@ -197,18 +236,24 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
 
   const selectedDateKey = formatDateKey(selectedDate);
 
+  // Limit daily-task rendering to the currently selected date.
   const selectedDateTasks = tasks.filter(
     (task) => task.date === selectedDateKey,
   );
 
+  // Tasks without a start time appear in the general task list
+  // instead of the chronological timeline.
   const tasksWithoutTime = selectedDateTasks.filter((task) => !task.startTime);
 
+  // Timed tasks are sorted before being combined with course meetings.
   const timedTasks = selectedDateTasks
     .filter((task) => task.startTime)
     .sort((firstTask, secondTask) =>
       firstTask.startTime!.localeCompare(secondTask.startTime!),
     );
 
+  // Merge timed user tasks with course meetings for the selected day,
+  // then sort everything into one chronological daily timeline.
   const timeline: TimelineEntry[] = [
     ...timedTasks.map(
       (task): TimelineEntry => ({
@@ -217,6 +262,7 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
         task,
       }),
     ),
+
     ...courses.flatMap((course) =>
       course.meetings
         .filter((meeting) => meeting.day === days[selectedDate.getDay()])
@@ -230,10 +276,15 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
         ),
     ),
   ].sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  // Opens the task modal in edit mode for the selected task.
   const openTask = (task: DailyTask) => {
     setEditingTask(task);
     setTaskModalOpen(true);
   };
+
+  // Shared completion control used by both untimed tasks
+  // and tasks displayed inside the timeline.
   const completionButton = (task: DailyTask) => (
     <button
       type="button"
@@ -249,9 +300,12 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
       {task.completed ? <Check size={18} /> : <Circle size={18} />}
     </button>
   );
+
+  // Groups the shared completion and edit controls for a task.
   const taskActions = (task: DailyTask) => (
     <div className="daily-task-actions">
       {completionButton(task)}
+
       <button
         type="button"
         className="daily-task-edit daily-task-action-edit"
@@ -262,6 +316,9 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
       </button>
     </div>
   );
+
+  // Converts stored 24-hour time values into the localized
+  // 12-hour display used by the planner.
   const formatTime = (time: string) => {
     const [hourValue, minute] = time.split(":").map(Number);
 
@@ -272,6 +329,7 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
 
     return `${hour}:${minute.toString().padStart(2, "0")} ${period}`;
   };
+
   return (
     <div className="daily-planner">
       <div className="daily-planner-header">
@@ -375,19 +433,24 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
             <p>{t("planner.emptyDescription")}</p>
           </div>
         )}
+
         {tasksWithoutTime.length > 0 && (
           <section className="daily-tasks-section">
             <div className="daily-section-header">
               <h3>{t("planner.tasks")}</h3>
+
               <span>
                 {tasksWithoutTime.filter((task) => !task.completed).length}
               </span>
             </div>
+
             <div className="daily-task-list">
               {tasksWithoutTime.map((task) => (
                 <div
                   key={task.id}
-                  className={`daily-task-item ${task.completed ? "completed" : ""}`}
+                  className={`daily-task-item ${
+                    task.completed ? "completed" : ""
+                  }`}
                 >
                   <button
                     type="button"
@@ -397,28 +460,34 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
                   >
                     <span className="daily-task-title">{task.title}</span>
                   </button>
+
                   {taskActions(task)}
                 </div>
               ))}
             </div>
           </section>
         )}
+
         {timeline.length > 0 && (
           <section className="daily-timeline-section">
             <div className="daily-section-header">
               <h3>{t("planner.schedule")}</h3>
             </div>
+
             <div className="daily-timeline">
               {timeline.map((entry) =>
                 entry.kind === "task" ? (
                   <div
                     key={`task-${entry.task.id}`}
-                    className={`daily-timeline-item ${entry.task.completed ? "completed" : ""}`}
+                    className={`daily-timeline-item ${
+                      entry.task.completed ? "completed" : ""
+                    }`}
                   >
                     <div className="daily-timeline-time">
                       <Clock size={15} />
                       <span>{formatTime(entry.startTime)}</span>
                     </div>
+
                     <div className="daily-timeline-card">
                       <button
                         type="button"
@@ -430,6 +499,7 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
                       >
                         <span className="daily-timeline-card-content">
                           <strong>{entry.task.title}</strong>
+
                           {entry.task.endTime && (
                             <span>
                               {formatTime(entry.startTime)} –{" "}
@@ -438,6 +508,7 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
                           )}
                         </span>
                       </button>
+
                       {taskActions(entry.task)}
                     </div>
                   </div>
@@ -450,22 +521,27 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
                       <Clock size={15} />
                       <span>{formatTime(entry.startTime)}</span>
                     </div>
+
                     <div className="daily-timeline-card daily-course-card">
                       <div className="daily-timeline-card-content">
                         <span className="daily-course-label">
                           <BookOpen size={15} />
                           {t("planner.lecture")}
                         </span>
+
                         <strong>{entry.course.name}</strong>
+
                         <span>
                           {formatTime(entry.startTime)} –{" "}
                           {formatTime(entry.meeting.endTime)}
                         </span>
+
                         {entry.course.room && (
                           <span>
                             {t("room")}: {entry.course.room}
                           </span>
                         )}
+
                         {entry.course.doctor && (
                           <span>
                             {t("doctor")}: {entry.course.doctor}
@@ -480,6 +556,7 @@ function DailyPlanner({ courses }: { courses: Course[] }) {
           </section>
         )}
       </div>
+
       {taskModalOpen && (
         <TaskModal
           task={editingTask ?? undefined}

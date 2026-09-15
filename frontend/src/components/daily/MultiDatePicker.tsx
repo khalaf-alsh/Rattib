@@ -12,6 +12,7 @@ type MultiDatePickerProps = {
   onCancel: () => void;
 };
 
+// Compares calendar dates while ignoring their time values.
 function isSameDay(firstDate: Date, secondDate: Date) {
   return (
     firstDate.getFullYear() === secondDate.getFullYear() &&
@@ -33,12 +34,16 @@ function MultiDatePicker({
   const locale = isArabic ? "ar-SA" : "en-US";
 
   // Keep selections temporary until the user confirms them.
+  // This allows the picker to be cancelled without modifying
+  // the dates already stored by the parent component.
   const [draftDates, setDraftDates] = useState<Date[]>(() =>
     [...selectedDates].sort(
       (firstDate, secondDate) => firstDate.getTime() - secondDate.getTime(),
     ),
   );
 
+  // The picker initially opens on the month containing
+  // the main task's starting date.
   const [visibleMonth, setVisibleMonth] = useState(
     () => new Date(startDate.getFullYear(), startDate.getMonth(), 1),
   );
@@ -53,6 +58,8 @@ function MultiDatePicker({
     year: "numeric",
   });
 
+  // Month navigation is restricted to the same date range
+  // that the user is allowed to select from.
   const firstAllowedMonth = new Date(
     startDate.getFullYear(),
     startDate.getMonth(),
@@ -69,6 +76,9 @@ function MultiDatePicker({
 
   const canGoNext = visibleMonth.getTime() < lastAllowedMonth.getTime();
 
+  // Build a fixed six-week calendar grid.
+  // Starting from the Sunday before the month's first day keeps
+  // all month layouts aligned to the same 42-cell structure.
   const calendarDays = useMemo(() => {
     const firstDayOfMonth = new Date(
       visibleMonth.getFullYear(),
@@ -91,6 +101,8 @@ function MultiDatePicker({
     });
   }, [visibleMonth]);
 
+  // Move to the previous month only when it remains
+  // inside the permitted recurrence range.
   const handlePreviousMonth = () => {
     if (!canGoPrevious) {
       return;
@@ -101,6 +113,8 @@ function MultiDatePicker({
     );
   };
 
+  // Move to the next month only when it remains
+  // inside the permitted recurrence range.
   const handleNextMonth = () => {
     if (!canGoNext) {
       return;
@@ -111,6 +125,8 @@ function MultiDatePicker({
     );
   };
 
+  // Toggle a date in the temporary selection.
+  // Newly selected dates remain sorted chronologically.
   const handleToggleDate = (date: Date) => {
     const alreadySelected = draftDates.some((selectedDate) =>
       isSameDay(selectedDate, date),
@@ -131,6 +147,7 @@ function MultiDatePicker({
     );
   };
 
+  // Commit the temporary date selection back to the parent component.
   const handleConfirm = () => {
     onConfirm(draftDates);
   };
@@ -177,6 +194,9 @@ function MultiDatePicker({
 
           const isStartDate = isSameDay(date, startDate);
 
+          // Dates outside the supported range cannot be selected.
+          // The main task date is also fixed because it already
+          // represents the first occurrence of the task.
           const disabled = date < startDate || date > maxDate || isStartDate;
 
           return (

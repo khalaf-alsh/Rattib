@@ -116,6 +116,7 @@ function AccountPage() {
     };
   }, []);
 
+  // Automatically dismiss temporary success messages after three seconds.
   useEffect(() => {
     if (!toastMessage) {
       return;
@@ -130,6 +131,7 @@ function AccountPage() {
     };
   }, [toastMessage]);
 
+  // Validate and submit an email change through the shared Auth context.
   const handleEmailSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
@@ -264,6 +266,7 @@ function AccountPage() {
     }
   };
 
+  // End the current session and return the user to the login page.
   const handleLogout = async () => {
     setLoggingOut(true);
 

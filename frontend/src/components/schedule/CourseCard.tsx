@@ -30,8 +30,11 @@ function CourseCard({
   const { t, i18n } = useTranslation();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Used to detect clicks outside the course options menu.
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Convert stored 24-hour values into localized 12-hour display text.
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(":").map(Number);
 
@@ -45,6 +48,7 @@ function CourseCard({
     }).format(date);
   };
 
+  // Close the options menu when the user clicks anywhere outside it.
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -111,6 +115,7 @@ function CourseCard({
         </div>
       </div>
 
+      {/* Hide the details section entirely when no optional course data exists. */}
       {(doctor || building || room || section) && (
         <div className="course-details">
           {doctor && (

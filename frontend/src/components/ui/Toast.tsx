@@ -1,4 +1,6 @@
 import { CheckCircle2, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
+
 import "./Toast.css";
 
 type ToastProps = {
@@ -7,8 +9,11 @@ type ToastProps = {
 };
 
 function Toast({ message, onClose }: ToastProps) {
+  const { t } = useTranslation();
+
   return (
-    <div className="toast">
+    // Announce temporary status messages without interrupting the user.
+    <div className="toast" role="status" aria-live="polite">
       <CheckCircle2 size={20} className="toast-icon" />
 
       <span className="toast-message">{message}</span>
@@ -17,7 +22,7 @@ function Toast({ message, onClose }: ToastProps) {
         type="button"
         className="toast-close"
         onClick={onClose}
-        aria-label="Close"
+        aria-label={t("close")}
       >
         <X size={17} />
       </button>

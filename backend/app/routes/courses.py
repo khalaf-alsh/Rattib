@@ -16,6 +16,7 @@ router = APIRouter(
 )
 
 
+# Load all courses and their meetings for the authenticated user.
 @router.get("")
 async def get_courses(
     auth=Depends(get_authenticated_user),
@@ -55,6 +56,7 @@ async def get_courses(
     return response.json()
 
 
+# Create a course and its associated meeting rows.
 @router.post("", status_code=201)
 async def create_course(
     course: CourseInput,
@@ -110,6 +112,8 @@ async def create_course(
             json=meetings_data,
         )
 
+        # Remove the newly created course if its meetings
+        # cannot be saved, keeping the database consistent.
         if meetings_response.status_code >= 400:
             await client.delete(
                 f"{SUPABASE_URL}/rest/v1/courses?id=eq.{course_id}",
@@ -139,6 +143,7 @@ async def create_course(
     }
 
 
+# Replace the course information and its complete meeting list.
 @router.put("/{course_id}")
 async def update_course(
     course_id: int,
@@ -162,6 +167,57 @@ async def update_course(
     }
 
     async with httpx.AsyncClient() as client:
+        # Load the existing state before changing anything so it can
+        # be restored if one of the later update operations fails.
+        existing_response = await client.get(
+            f"{SUPABASE_URL}/rest/v1/courses?id=eq.{course_id}",
+            headers=headers,
+            params={
+                "select": (
+                    "name,"
+                    "doctor,"
+                    "section,"
+                    "building,"
+                    "room,"
+                    "meetings(day,start_time,end_time)"
+                )
+            },
+        )
+
+        if existing_response.status_code >= 400:
+            raise HTTPException(
+                status_code=existing_response.status_code,
+                detail="Failed to load existing course",
+            )
+
+        existing_rows = existing_response.json()
+
+        if not existing_rows:
+            raise HTTPException(
+                status_code=404,
+                detail="Course not found",
+            )
+
+        existing_course = existing_rows[0]
+
+        previous_course_data = {
+            "name": existing_course["name"],
+            "doctor": existing_course["doctor"],
+            "section": existing_course["section"],
+            "building": existing_course["building"],
+            "room": existing_course["room"],
+        }
+
+        previous_meetings_data = [
+            {
+                "course_id": course_id,
+                "day": meeting["day"],
+                "start_time": meeting["start_time"],
+                "end_time": meeting["end_time"],
+            }
+            for meeting in existing_course.get("meetings", [])
+        ]
+
         course_response = await client.patch(
             f"{SUPABASE_URL}/rest/v1/courses?id=eq.{course_id}",
             headers=headers,
@@ -180,6 +236,20 @@ async def update_course(
         )
 
         if delete_response.status_code >= 400:
+            # The meeting deletion failed, so restore the course
+            # information that was already changed above.
+            rollback_response = await client.patch(
+                f"{SUPABASE_URL}/rest/v1/courses?id=eq.{course_id}",
+                headers=headers,
+                json=previous_course_data,
+            )
+
+            if rollback_response.status_code >= 400:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to update course and restore previous state",
+                )
+
             raise HTTPException(
                 status_code=delete_response.status_code,
                 detail="Failed to update course meetings",
@@ -202,6 +272,46 @@ async def update_course(
         )
 
         if meetings_response.status_code >= 400:
+            # Restore both the previous course information and
+            # its meeting list if saving the replacement meetings fails.
+            rollback_course_response = await client.patch(
+                f"{SUPABASE_URL}/rest/v1/courses?id=eq.{course_id}",
+                headers=headers,
+                json=previous_course_data,
+            )
+
+            rollback_delete_response = await client.delete(
+                f"{SUPABASE_URL}/rest/v1/meetings?course_id=eq.{course_id}",
+                headers=headers,
+            )
+
+            rollback_meetings_response = None
+
+            if (
+                rollback_delete_response.status_code < 400
+                and previous_meetings_data
+            ):
+                rollback_meetings_response = await client.post(
+                    f"{SUPABASE_URL}/rest/v1/meetings",
+                    headers=headers,
+                    json=previous_meetings_data,
+                )
+
+            rollback_failed = (
+                rollback_course_response.status_code >= 400
+                or rollback_delete_response.status_code >= 400
+                or (
+                    rollback_meetings_response is not None
+                    and rollback_meetings_response.status_code >= 400
+                )
+            )
+
+            if rollback_failed:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to update course and restore previous state",
+                )
+
             raise HTTPException(
                 status_code=meetings_response.status_code,
                 detail="Failed to save updated meetings",
@@ -225,6 +335,7 @@ async def update_course(
     }
 
 
+# Update one specific meeting while keeping the rest unchanged.
 @router.patch("/{course_id}/meeting")
 async def update_course_meeting(
     course_id: int,
@@ -287,6 +398,8 @@ async def update_course_meeting(
     }
 
 
+# Delete a course. Related meetings are removed through
+# the database relationship configured for the course.
 @router.delete("/{course_id}", status_code=204)
 async def delete_course(
     course_id: int,
@@ -312,6 +425,7 @@ async def delete_course(
         )
 
 
+# Delete one meeting identified by its original schedule values.
 @router.delete("/{course_id}/meeting", status_code=204)
 async def delete_course_meeting(
     course_id: int,

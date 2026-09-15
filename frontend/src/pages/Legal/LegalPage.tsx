@@ -14,15 +14,17 @@ type LegalPageProps = {
 };
 
 function LegalPage({ type }: LegalPageProps) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const language = i18n.language.toLowerCase().startsWith("ar") ? "ar" : "en";
 
+  // Select the requested legal document in the active language.
   const content =
     type === "privacy" ? privacyContent[language] : termsContent[language];
 
   const isRtl = language === "ar";
 
+  // Keep the browser title synchronized with the displayed legal document.
   useEffect(() => {
     document.title = content.browserTitle;
   }, [content.browserTitle]);
@@ -46,7 +48,10 @@ function LegalPage({ type }: LegalPageProps) {
           </Link>
 
           <div className="legal-header-actions">
-            <div className="legal-language-switcher" aria-label="Language">
+            <div
+              className="legal-language-switcher"
+              aria-label={t("authControls.changeLanguage")}
+            >
               <Languages size={17} aria-hidden="true" />
 
               <button

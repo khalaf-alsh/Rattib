@@ -6,6 +6,7 @@ import {
   type VapidKeys,
 } from "@block65/webcrypto-web-push";
 
+// Minimal database typing used by this Edge Function.
 type Database = {
   public: {
     Tables: {
@@ -131,6 +132,7 @@ type Database = {
   };
 };
 
+// Only the task fields required for reminder delivery are loaded.
 type DueTask = {
   id: number;
   user_id: string;
@@ -138,6 +140,7 @@ type DueTask = {
   reminder_at: string;
 };
 
+// Stored browser subscription values required to build Web Push requests.
 type StoredPushSubscription = {
   id: number;
   endpoint: string;
@@ -145,8 +148,11 @@ type StoredPushSubscription = {
   auth: string;
 };
 
+// Ignore reminders that became due more than this many minutes ago.
 const REMINDER_WINDOW_MINUTES = 5;
 
+// Read a required Edge Function secret and fail immediately
+// when the deployment is missing its configuration.
 function getRequiredSecret(name: string): string {
   const value = Deno.env.get(name);
 
@@ -183,6 +189,7 @@ const supabaseAdmin = createClient<Database>(
   },
 );
 
+// VAPID identifies the application server to browser push services.
 const vapid: VapidKeys = {
   subject: getRequiredSecret("VAPID_SUBJECT"),
 
@@ -196,6 +203,8 @@ async function sendPushNotification(
   subscription: StoredPushSubscription,
   task: DueTask,
 ): Promise<Response> {
+  // Convert the stored database fields into the standard
+  // Web Push subscription structure expected by the library.
   const pushSubscription: PushSubscription = {
     endpoint: subscription.endpoint,
     expirationTime: null,
@@ -206,6 +215,7 @@ async function sendPushNotification(
     },
   };
 
+  // Encrypt and sign the notification payload using VAPID.
   const payload = await buildPushPayload(
     {
       data: JSON.stringify({
@@ -229,6 +239,8 @@ async function sendPushNotification(
 
 export default {
   async fetch(request: Request): Promise<Response> {
+    // This worker is intended to be invoked only by the scheduled
+    // reminder request, so other HTTP methods are rejected.
     if (request.method !== "POST") {
       return Response.json(
         {
@@ -258,6 +270,8 @@ export default {
 
     const now = new Date();
 
+    // Use a short backward-looking window so small scheduling delays
+    // do not cause a recently due reminder to be missed.
     const windowStart = new Date(
       now.getTime() - REMINDER_WINDOW_MINUTES * 60 * 1000,
     );
@@ -291,10 +305,13 @@ export default {
 
     const tasks = (dueTasks ?? []) as DueTask[];
 
+    // These counters are returned for monitoring each worker run.
     let pushesSent = 0;
     let staleSubscriptionsRemoved = 0;
     let failedPushes = 0;
 
+    // Process each due task independently so one failure does not
+    // prevent reminders for other tasks from being attempted.
     for (const task of tasks) {
       const { data: subscriptions, error: subscriptionsError } =
         await supabaseAdmin
@@ -352,6 +369,8 @@ export default {
             continue;
           }
 
+          // Keep temporary or unexpected push failures available
+          // for future reminder attempts instead of deleting the subscription.
           console.error(`Push failed with status ${pushResponse.status}`);
 
           failedPushes += 1;
@@ -362,6 +381,7 @@ export default {
         }
       }
 
+      // Leave the reminder unsent if no registered device received it.
       if (!deliveredToAtLeastOneDevice) {
         continue;
       }
@@ -383,6 +403,7 @@ export default {
       }
     }
 
+    // Return a compact summary for scheduler logs and debugging.
     return Response.json({
       checked: tasks.length,
       pushesSent,

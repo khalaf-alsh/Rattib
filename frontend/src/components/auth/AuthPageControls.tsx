@@ -9,12 +9,14 @@ type Theme = "dark" | "light";
 function AuthPageControls() {
   const { t, i18n } = useTranslation();
 
+  // Restore the saved theme, defaulting to dark mode.
   const [theme, setTheme] = useState<Theme>(() => {
     const savedTheme = localStorage.getItem("theme");
 
     return savedTheme === "light" ? "light" : "dark";
   });
 
+  // Apply theme changes globally and persist the user's preference.
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
@@ -24,6 +26,7 @@ function AuthPageControls() {
     setTheme((currentTheme) => (currentTheme === "dark" ? "light" : "dark"));
   };
 
+  // Switch between the two supported application languages.
   const toggleLanguage = () => {
     const newLanguage = i18n.language.startsWith("ar") ? "en" : "ar";
 

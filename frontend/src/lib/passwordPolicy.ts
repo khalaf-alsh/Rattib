@@ -20,6 +20,8 @@ export function getPasswordRequirements(
   };
 }
 
+// A password is valid only when every requirement above
+// has been satisfied.
 export function isPasswordValid(password: string): boolean {
   const requirements = getPasswordRequirements(password);
 

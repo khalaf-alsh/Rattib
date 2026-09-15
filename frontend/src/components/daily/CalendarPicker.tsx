@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
 import "./CalendarPicker.css";
 
 type CalendarPickerProps = {
@@ -8,6 +9,7 @@ type CalendarPickerProps = {
   onSelect: (date: Date) => void;
 };
 
+// Compares two calendar dates while ignoring their time values.
 function isSameDay(firstDate: Date, secondDate: Date) {
   return (
     firstDate.getFullYear() === secondDate.getFullYear() &&
@@ -22,8 +24,11 @@ function CalendarPicker({ selectedDate, onSelect }: CalendarPickerProps) {
   const isArabic = i18n.language === "ar";
   const locale = isArabic ? "ar-SA" : "en-US";
 
+  // Keep the original current date stable while the picker is mounted.
   const today = useMemo(() => new Date(), []);
 
+  // Open the calendar on the month that contains
+  // the currently selected date.
   const [visibleMonth, setVisibleMonth] = useState(
     () => new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1),
   );
@@ -38,6 +43,8 @@ function CalendarPicker({ selectedDate, onSelect }: CalendarPickerProps) {
     year: "numeric",
   });
 
+  // Build a fixed six-week grid starting from the Sunday
+  // before the first day of the visible month.
   const calendarDays = useMemo(() => {
     const firstDayOfMonth = new Date(
       visibleMonth.getFullYear(),
@@ -58,18 +65,22 @@ function CalendarPicker({ selectedDate, onSelect }: CalendarPickerProps) {
     });
   }, [visibleMonth]);
 
+  // Move the visible calendar back by one month.
   const handlePreviousMonth = () => {
     setVisibleMonth(
       (current) => new Date(current.getFullYear(), current.getMonth() - 1, 1),
     );
   };
 
+  // Move the visible calendar forward by one month.
   const handleNextMonth = () => {
     setVisibleMonth(
       (current) => new Date(current.getFullYear(), current.getMonth() + 1, 1),
     );
   };
 
+  // Return the calendar to the current month
+  // and immediately select today's date.
   const handleToday = () => {
     const currentToday = new Date();
 
@@ -115,6 +126,7 @@ function CalendarPicker({ selectedDate, onSelect }: CalendarPickerProps) {
           const outsideMonth = date.getMonth() !== visibleMonth.getMonth();
 
           const selected = isSameDay(date, selectedDate);
+
           const currentDay = isSameDay(date, today);
 
           return (

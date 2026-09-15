@@ -2,6 +2,8 @@ import { apiFetch } from "../lib/apiClient";
 
 import type { DailyTask, DailyTaskInput } from "../types/dailyPlanner";
 
+// Represents the daily-task structure returned by the backend.
+// Database-style snake_case fields are converted to the frontend model below.
 type BackendDailyTask = {
   id: number;
   title: string;
@@ -23,6 +25,8 @@ type BackendDailyTask = {
   series_type: DailyTask["seriesType"];
 };
 
+// Converts a backend daily-task response into the format
+// used by React components throughout the frontend.
 function mapDailyTask(task: BackendDailyTask): DailyTask {
   return {
     id: task.id,
@@ -49,6 +53,8 @@ function mapDailyTask(task: BackendDailyTask): DailyTask {
   };
 }
 
+// Loads all daily tasks belonging to the authenticated user
+// and converts them into the frontend task model.
 export async function getDailyTasks(): Promise<DailyTask[]> {
   const response = await apiFetch("/api/daily-tasks");
 
@@ -61,6 +67,7 @@ export async function getDailyTasks(): Promise<DailyTask[]> {
   return data.map(mapDailyTask);
 }
 
+// Creates a new daily task or recurring task series through the backend.
 export async function createDailyTask(
   task: DailyTaskInput,
 ): Promise<DailyTask> {
@@ -79,6 +86,9 @@ export async function createDailyTask(
 }
 
 export type DailyTaskUpdateScope = "single" | "series";
+
+// Updates either the selected task occurrence or its entire recurring series,
+// depending on the scope chosen by the user.
 export async function updateDailyTask(
   taskId: number,
   task: DailyTaskInput,
@@ -98,6 +108,7 @@ export async function updateDailyTask(
   return mapDailyTask(data);
 }
 
+// Updates only the completion state of a single daily-task occurrence.
 export async function updateDailyTaskCompletion(
   taskId: number,
   completed: boolean,
@@ -120,6 +131,8 @@ export async function updateDailyTaskCompletion(
 
 export type DailyTaskDeleteScope = "single" | "series";
 
+// Deletes either one occurrence or the complete recurring series
+// according to the selected deletion scope.
 export async function deleteDailyTask(
   taskId: number,
   scope: DailyTaskDeleteScope = "single",

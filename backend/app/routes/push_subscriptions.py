@@ -13,6 +13,8 @@ router = APIRouter(
 )
 
 
+# Save or refresh a Web Push subscription for the
+# currently authenticated user.
 @router.post("", status_code=201)
 async def save_push_subscription(
     subscription: PushSubscriptionInput,
@@ -24,9 +26,14 @@ async def save_push_subscription(
         "apikey": SUPABASE_PUBLISHABLE_KEY,
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
+
+        # Merge an existing row instead of creating a duplicate
+        # when the same user and browser endpoint are registered again.
         "Prefer": "resolution=merge-duplicates,return=representation",
     }
 
+    # Store the browser endpoint together with the encryption keys
+    # required later when sending Web Push notifications.
     subscription_data = {
         "user_id": user.id,
         "endpoint": subscription.endpoint,
@@ -34,6 +41,8 @@ async def save_push_subscription(
         "auth": subscription.auth,
     }
 
+    # The user/endpoint pair identifies one browser subscription
+    # and is used by Supabase as the upsert conflict target.
     params = {
         "on_conflict": "user_id,endpoint",
     }
@@ -63,6 +72,8 @@ async def save_push_subscription(
     return rows[0]
 
 
+# Remove a browser push endpoint when the user disables
+# notifications on that device.
 @router.delete("", status_code=204)
 async def delete_push_subscription(
     endpoint: str,
@@ -72,10 +83,14 @@ async def delete_push_subscription(
 
     headers = {
         "apikey": SUPABASE_PUBLISHABLE_KEY,
+
+        # The user's token keeps this request subject to
+        # the push_subscriptions table's Row Level Security rules.
         "Authorization": f"Bearer {access_token}",
         "Prefer": "return=representation",
     }
 
+    # Target the exact browser endpoint that is being unsubscribed.
     params = {
         "endpoint": f"eq.{endpoint}",
     }

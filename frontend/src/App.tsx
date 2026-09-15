@@ -16,6 +16,7 @@ import TermsPage from "./pages/Legal/TermsPage";
 function App() {
   return (
     <Routes>
+      {/* Public authentication and legal routes. */}
       <Route path="/login" element={<LoginPage />} />
 
       <Route path="/register" element={<RegisterPage />} />
@@ -28,6 +29,7 @@ function App() {
 
       <Route path="/terms" element={<TermsPage />} />
 
+      {/* Authenticated routes share the main application layout. */}
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/schedule" element={<SchedulePage />} />
@@ -38,8 +40,10 @@ function App() {
         </Route>
       </Route>
 
+      {/* Use the schedule as the application's default destination. */}
       <Route path="/" element={<Navigate to="/schedule" replace />} />
 
+      {/* Redirect unknown routes back to the main schedule page. */}
       <Route path="*" element={<Navigate to="/schedule" replace />} />
     </Routes>
   );
