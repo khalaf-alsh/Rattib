@@ -5,18 +5,40 @@ import {
   useState,
   type ReactNode,
 } from "react";
+
 import type { User } from "@supabase/supabase-js";
+
+import { authErrorKey } from "../lib/authErrors";
 import { supabase } from "../lib/supabaseClient";
+
+import { PRIVACY_VERSION, TERMS_VERSION } from "../lib/legalVersions";
 
 type AuthContextType = {
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<string | null>;
-  signUp: (email: string, password: string) => Promise<string | null>;
+
+  signIn: (
+    email: string,
+    password: string,
+    captchaToken: string,
+  ) => Promise<string | null>;
+
+  signUp: (
+    email: string,
+    password: string,
+    captchaToken: string,
+  ) => Promise<string | null>;
+
   signOut: () => Promise<void>;
+
   updateEmail: (email: string) => Promise<string | null>;
+
   updatePassword: (password: string) => Promise<string | null>;
-  resetPassword: (email: string) => Promise<string | null>;
+
+  resetPassword: (
+    email: string,
+    captchaToken: string,
+  ) => Promise<string | null>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,9 +49,12 @@ type AuthProviderProps = {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Restore the existing Supabase session when the app starts
+    // so authenticated users remain signed in after refreshing.
     const initializeAuth = async () => {
       const {
         data: { session },
@@ -41,6 +66,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     initializeAuth();
 
+    // Keep the application user state synchronized with Supabase
+    // whenever the authentication session changes.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -48,37 +75,90 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(false);
     });
 
+    // Remove the authentication listener when the provider
+    // is unmounted to avoid unnecessary subscriptions.
     return () => {
       subscription.unsubscribe();
     };
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+  // Authenticates an existing user with email and password.
+  // The Turnstile token is forwarded to Supabase for CAPTCHA verification.
+  const signIn = async (
+    email: string,
+    password: string,
+    captchaToken: string,
+  ) => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
 
-    return error ? error.message : null;
+        options: {
+          captchaToken,
+        },
+      });
+
+      return error ? authErrorKey(error, "loginFailed") : null;
+    } catch (error) {
+      return authErrorKey(error, "loginFailed");
+    }
   };
 
-  const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+  // Creates a new user account after CAPTCHA verification.
+  // The active legal-document versions and acceptance timestamp
+  // are stored in the user's authentication metadata.
+  const signUp = async (
+    email: string,
+    password: string,
+    captchaToken: string,
+  ) => {
+    try {
+      const acceptedAt = new Date().toISOString();
 
-    return error ? error.message : null;
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+
+        options: {
+          captchaToken,
+
+          data: {
+            terms_accepted_at: acceptedAt,
+
+            terms_version: TERMS_VERSION,
+
+            privacy_acknowledged_at: acceptedAt,
+
+            privacy_version: PRIVACY_VERSION,
+
+            age_confirmed_18_plus: true,
+          },
+        },
+      });
+
+      return error ? authErrorKey(error, "registrationFailed") : null;
+    } catch (error) {
+      return authErrorKey(error, "registrationFailed");
+    }
   };
 
-  const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+  // Requests a password-reset email after CAPTCHA verification.
+  // Supabase redirects the user back to Ratteb's reset-password page.
+  const resetPassword = async (email: string, captchaToken: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+        captchaToken,
+      });
 
-    return error ? error.message : null;
+      return error ? error.message : null;
+    } catch (error) {
+      return error instanceof Error ? error.message : "Password reset failed";
+    }
   };
 
+  // Updates the email address of the currently authenticated user.
   const updateEmail = async (email: string) => {
     const { error } = await supabase.auth.updateUser({
       email,
@@ -87,6 +167,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return error ? error.message : null;
   };
 
+  // Updates the password of the currently authenticated user.
   const updatePassword = async (password: string) => {
     const { error } = await supabase.auth.updateUser({
       password,
@@ -95,6 +176,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return error ? error.message : null;
   };
 
+  // Ends the current Supabase authentication session.
   const signOut = async () => {
     await supabase.auth.signOut();
   };
@@ -117,6 +199,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 }
 
+// Provides access to the authentication context and prevents
+// accidental usage outside the AuthProvider tree.
 export function useAuth() {
   const context = useContext(AuthContext);
 

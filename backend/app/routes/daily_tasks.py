@@ -1,0 +1,676 @@
+from datetime import date as DateType, timedelta
+from uuid import uuid4
+from typing import Literal
+import httpx
+
+from fastapi import APIRouter, Depends, HTTPException, Response
+
+from app.config import SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY
+from app.dependencies.auth import get_authenticated_user
+from app.models.daily_task import (
+    DailyTaskCompletionInput,
+    DailyTaskInput,
+)
+from app.utils.reminders import calculate_reminder_at
+
+
+router = APIRouter(
+    prefix="/api/daily-tasks",
+    tags=["Daily Tasks"],
+)
+
+
+# Normalize Supabase time values before comparing them
+# with the HH:MM values produced by the frontend.
+def normalize_db_time(value: str | None) -> str | None:
+    # Normalize Supabase time values such as "21:30:00" to "21:30"
+    # so they can be compared with the incoming task values.
+    if value is None:
+        return None
+
+    return value[:5]
+
+
+# Build every database occurrence required by the selected
+# recurrence type before the task or series is inserted.
+def build_occurrence_dates(task: DailyTaskInput):
+    # Build all dates for a recurring task.
+    # The task's own date is always the first occurrence.
+    if task.seriesType == "single":
+        return [task.date]
+
+    if task.seriesType == "daily":
+        dates = []
+        current_date = task.date
+
+        while current_date <= task.repeatUntil:
+            dates.append(current_date)
+            current_date += timedelta(days=1)
+
+        return dates
+
+    if task.seriesType == "weekly":
+        dates = []
+        current_date = task.date
+
+        while current_date <= task.repeatUntil:
+            dates.append(current_date)
+            current_date += timedelta(days=7)
+
+        return dates
+
+    if task.seriesType == "customDates":
+        return sorted(
+            set(
+                [
+                    task.date,
+                    *task.customDates,
+                ]
+            )
+        )
+
+    return [task.date]
+
+
+# Return all daily tasks available to the authenticated user.
+# Supabase RLS uses the user's access token to restrict the rows.
+@router.get("")
+async def get_daily_tasks(
+    auth=Depends(get_authenticated_user),
+):
+    access_token, _ = auth
+
+    headers = {
+        "apikey": SUPABASE_PUBLISHABLE_KEY,
+        "Authorization": f"Bearer {access_token}",
+    }
+
+    # Request only the fields required by the daily planner
+    # and return tasks chronologically.
+    params = {
+        "select": (
+            "id,"
+            "title,"
+            "task_date,"
+            "start_time,"
+            "end_time,"
+            "notes,"
+            "reminder,"
+            "reminder_time,"
+            "reminder_at,"
+            "time_zone,"
+            "series_id,"
+            "series_type,"
+            "completed"
+        ),
+        "order": "task_date.asc,start_time.asc",
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{SUPABASE_URL}/rest/v1/daily_tasks",
+            headers=headers,
+            params=params,
+        )
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail="Failed to load daily tasks",
+        )
+
+    return response.json()
+
+
+# Create either one task or all occurrences of a recurring series.
+@router.post("", status_code=201)
+async def create_daily_task(
+    task: DailyTaskInput,
+    auth=Depends(get_authenticated_user),
+):
+    access_token, user = auth
+
+    headers = {
+        "apikey": SUPABASE_PUBLISHABLE_KEY,
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    }
+
+    # Recurrence is expanded into individual database rows so every
+    # occurrence can later be completed, edited, or deleted independently.
+    occurrence_dates = build_occurrence_dates(task)
+
+    # All occurrences created together share one UUID.
+    # Normal single tasks do not require a series identifier.
+    series_id = (
+        str(uuid4())
+        if task.seriesType != "single"
+        else None
+    )
+
+    tasks_data = []
+
+    for occurrence_date in occurrence_dates:
+        # Calculate each reminder using the occurrence's own date.
+        occurrence_task = task.model_copy(
+            update={
+                "date": occurrence_date,
+            }
+        )
+
+        try:
+            reminder_at = calculate_reminder_at(
+                occurrence_task
+            )
+        except ValueError as error:
+            raise HTTPException(
+                status_code=422,
+                detail=str(error),
+            )
+
+        # Each recurrence occurrence is stored as a complete task row
+        # while sharing the same series metadata.
+        task_data = {
+            "user_id": user.id,
+            "title": task.title,
+            "task_date": occurrence_date.isoformat(),
+
+            "start_time": (
+                task.startTime.isoformat(timespec="minutes")
+                if task.startTime
+                else None
+            ),
+
+            "end_time": (
+                task.endTime.isoformat(timespec="minutes")
+                if task.endTime
+                else None
+            ),
+
+            "notes": task.notes,
+
+            "reminder": task.reminder,
+
+            "reminder_time": (
+                task.reminderTime.isoformat(timespec="minutes")
+                if task.reminderTime
+                else None
+            ),
+
+            "reminder_at": (
+                reminder_at.isoformat()
+                if reminder_at
+                else None
+            ),
+
+            # New or rescheduled reminders must begin in the unsent state.
+            "reminder_sent_at": None,
+
+            "time_zone": task.timeZone,
+
+            "completed": False,
+
+            "series_id": series_id,
+            "series_type": task.seriesType,
+        }
+
+        tasks_data.append(task_data)
+
+    async with httpx.AsyncClient() as client:
+        # Supabase REST accepts an array to insert the whole
+        # recurring series in a single database request.
+        response = await client.post(
+            f"{SUPABASE_URL}/rest/v1/daily_tasks",
+            headers=headers,
+            json=tasks_data,
+        )
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail="Failed to create daily task",
+        )
+
+    created_rows = response.json()
+
+    if not created_rows:
+        raise HTTPException(
+            status_code=500,
+            detail="Daily task was not returned after creation",
+        )
+
+    # Keep the current API response compatible with the frontend.
+    # The frontend will reload the full series after recurring-task
+    # controls are added.
+    return created_rows[0]
+
+
+# Update either one occurrence or every task belonging to
+# the selected recurring series.
+@router.put("/{task_id}")
+async def update_daily_task(
+    task_id: int,
+    task: DailyTaskInput,
+    scope: Literal["single", "series"] = "single",
+    auth=Depends(get_authenticated_user),
+):
+    access_token, _ = auth
+
+    headers = {
+        "apikey": SUPABASE_PUBLISHABLE_KEY,
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    }
+
+    # Convert Pydantic time values into the same HH:MM format
+    # used for comparisons and Supabase updates.
+    new_start_time = (
+        task.startTime.isoformat(timespec="minutes")
+        if task.startTime
+        else None
+    )
+
+    new_end_time = (
+        task.endTime.isoformat(timespec="minutes")
+        if task.endTime
+        else None
+    )
+
+    new_reminder_time = (
+        task.reminderTime.isoformat(timespec="minutes")
+        if task.reminderTime
+        else None
+    )
+
+    async with httpx.AsyncClient() as client:
+        # Load the selected occurrence first so we can determine
+        # whether it belongs to a recurring series.
+        existing_response = await client.get(
+            f"{SUPABASE_URL}/rest/v1/daily_tasks",
+            headers=headers,
+            params={
+                "id": f"eq.{task_id}",
+                "select": (
+                    "id,"
+                    "series_id,"
+                    "task_date,"
+                    "start_time,"
+                    "reminder,"
+                    "reminder_time,"
+                    "time_zone"
+                ),
+            },
+        )
+
+        if existing_response.status_code >= 400:
+            raise HTTPException(
+                status_code=existing_response.status_code,
+                detail="Failed to load daily task",
+            )
+
+        existing_rows = existing_response.json()
+
+        if not existing_rows:
+            raise HTTPException(
+                status_code=404,
+                detail="Daily task not found",
+            )
+
+        selected_task = existing_rows[0]
+        series_id = selected_task.get("series_id")
+
+        # Update the whole series while preserving each occurrence's
+        # own date, completion status, ID, and series metadata.
+        if scope == "series" and series_id:
+            series_response = await client.get(
+                f"{SUPABASE_URL}/rest/v1/daily_tasks",
+                headers=headers,
+                params={
+                    "series_id": f"eq.{series_id}",
+                    "select": (
+                        "id,"
+                        "task_date,"
+                        "start_time,"
+                        "reminder,"
+                        "reminder_time,"
+                        "time_zone"
+                    ),
+                    "order": "task_date.asc",
+                },
+            )
+
+            if series_response.status_code >= 400:
+                raise HTTPException(
+                    status_code=series_response.status_code,
+                    detail="Failed to load daily task series",
+                )
+
+            series_rows = series_response.json()
+
+            if not series_rows:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Daily task series not found",
+                )
+
+            # The endpoint still returns the occurrence originally
+            # selected by the user after all rows have been updated.
+            updated_selected_task = None
+
+            for existing_task in series_rows:
+                # Recalculate reminder timestamps only when a value
+                # that affects reminder scheduling has changed.
+                reminder_schedule_changed = any(
+                    [
+                        normalize_db_time(
+                            existing_task["start_time"]
+                        )
+                        != new_start_time,
+                        existing_task["reminder"]
+                        != task.reminder,
+                        normalize_db_time(
+                            existing_task["reminder_time"]
+                        )
+                        != new_reminder_time,
+                        existing_task["time_zone"]
+                        != task.timeZone,
+                    ]
+                )
+
+                # The occurrence's own task_date is intentionally omitted
+                # so editing a series does not move every row to one date.
+                task_data = {
+                    "title": task.title,
+                    "start_time": new_start_time,
+                    "end_time": new_end_time,
+                    "notes": task.notes,
+                    "reminder": task.reminder,
+                    "reminder_time": new_reminder_time,
+                    "time_zone": task.timeZone,
+                }
+
+                if reminder_schedule_changed:
+                    # Each occurrence needs its own reminder timestamp
+                    # because every row has a different task date.
+                    occurrence_task = task.model_copy(
+                        update={
+                            "date": DateType.fromisoformat(
+                                existing_task["task_date"]
+                            ),
+                        }
+                    )
+
+                    try:
+                        reminder_at = calculate_reminder_at(
+                            occurrence_task
+                        )
+                    except ValueError as error:
+                        # Past occurrences should not receive a new
+                        # reminder when the whole series is edited.
+                        if (
+                            str(error)
+                            == "Reminder time must be in the future"
+                        ):
+                            reminder_at = None
+                        else:
+                            raise HTTPException(
+                                status_code=422,
+                                detail=str(error),
+                            )
+
+                    task_data["reminder_at"] = (
+                        reminder_at.isoformat()
+                        if reminder_at
+                        else None
+                    )
+
+                    # Reset delivery state whenever a reminder schedule
+                    # is changed so eligible future reminders can fire again.
+                    task_data["reminder_sent_at"] = None
+
+                # Series updates are applied one occurrence at a time
+                # because reminder timestamps depend on each row's date.
+                response = await client.patch(
+                    f"{SUPABASE_URL}/rest/v1/daily_tasks",
+                    headers=headers,
+                    params={
+                        "id": f"eq.{existing_task['id']}",
+                    },
+                    json=task_data,
+                )
+
+                if response.status_code >= 400:
+                    raise HTTPException(
+                        status_code=response.status_code,
+                        detail="Failed to update daily task series",
+                    )
+
+                updated_rows = response.json()
+
+                if not updated_rows:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Daily task not found",
+                    )
+
+                if existing_task["id"] == task_id:
+                    updated_selected_task = updated_rows[0]
+
+            if not updated_selected_task:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Daily task not found",
+                )
+
+            return updated_selected_task
+
+        # Update only the selected occurrence.
+        # Changes that affect scheduling require a new reminder_at value.
+        reminder_schedule_changed = any(
+            [
+                selected_task["task_date"]
+                != task.date.isoformat(),
+                normalize_db_time(
+                    selected_task["start_time"]
+                )
+                != new_start_time,
+                selected_task["reminder"]
+                != task.reminder,
+                normalize_db_time(
+                    selected_task["reminder_time"]
+                )
+                != new_reminder_time,
+                selected_task["time_zone"]
+                != task.timeZone,
+            ]
+        )
+
+        task_data = {
+            "title": task.title,
+            "task_date": task.date.isoformat(),
+            "start_time": new_start_time,
+            "end_time": new_end_time,
+            "notes": task.notes,
+            "reminder": task.reminder,
+            "reminder_time": new_reminder_time,
+            "time_zone": task.timeZone,
+        }
+
+        if reminder_schedule_changed:
+            try:
+                reminder_at = calculate_reminder_at(task)
+            except ValueError as error:
+                raise HTTPException(
+                    status_code=422,
+                    detail=str(error),
+                )
+
+            task_data["reminder_at"] = (
+                reminder_at.isoformat()
+                if reminder_at
+                else None
+            )
+
+            # Allow the newly calculated reminder to be delivered.
+            task_data["reminder_sent_at"] = None
+
+        response = await client.patch(
+            f"{SUPABASE_URL}/rest/v1/daily_tasks",
+            headers=headers,
+            params={
+                "id": f"eq.{task_id}",
+            },
+            json=task_data,
+        )
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail="Failed to update daily task",
+        )
+
+    updated_rows = response.json()
+
+    if not updated_rows:
+        raise HTTPException(
+            status_code=404,
+            detail="Daily task not found",
+        )
+
+    return updated_rows[0]
+
+
+# Update only the completion state of one task occurrence.
+# Completing one recurring occurrence does not affect the rest of its series.
+@router.patch("/{task_id}/completion")
+async def update_daily_task_completion(
+    task_id: int,
+    completion: DailyTaskCompletionInput,
+    auth=Depends(get_authenticated_user),
+):
+    access_token, _ = auth
+
+    headers = {
+        "apikey": SUPABASE_PUBLISHABLE_KEY,
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.patch(
+            f"{SUPABASE_URL}/rest/v1/daily_tasks?id=eq.{task_id}",
+            headers=headers,
+            json={
+                "completed": completion.completed,
+            },
+        )
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail="Failed to update task completion",
+        )
+
+    updated_rows = response.json()
+
+    if not updated_rows:
+        raise HTTPException(
+            status_code=404,
+            detail="Daily task not found",
+        )
+
+    return updated_rows[0]
+
+
+# Delete either one task occurrence or every occurrence
+# belonging to the same recurring series.
+@router.delete("/{task_id}", status_code=204)
+async def delete_daily_task(
+    task_id: int,
+    scope: Literal["single", "series"] = "single",
+    auth=Depends(get_authenticated_user),
+):
+    access_token, _ = auth
+
+    headers = {
+        "apikey": SUPABASE_PUBLISHABLE_KEY,
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    }
+
+    async with httpx.AsyncClient() as client:
+        if scope == "single":
+            # Delete only the selected occurrence.
+            response = await client.delete(
+                f"{SUPABASE_URL}/rest/v1/daily_tasks",
+                headers=headers,
+                params={
+                    "id": f"eq.{task_id}",
+                },
+            )
+
+        else:
+            # Read the selected occurrence first to find its series.
+            task_response = await client.get(
+                f"{SUPABASE_URL}/rest/v1/daily_tasks",
+                headers=headers,
+                params={
+                    "id": f"eq.{task_id}",
+                    "select": "id,series_id",
+                },
+            )
+
+            if task_response.status_code >= 400:
+                raise HTTPException(
+                    status_code=task_response.status_code,
+                    detail="Failed to read daily task",
+                )
+
+            rows = task_response.json()
+
+            if not rows:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Daily task not found",
+                )
+
+            series_id = rows[0].get("series_id")
+
+            # A normal task has no series, so delete only that task.
+            if not series_id:
+                response = await client.delete(
+                    f"{SUPABASE_URL}/rest/v1/daily_tasks",
+                    headers=headers,
+                    params={
+                        "id": f"eq.{task_id}",
+                    },
+                )
+            else:
+                # Delete every occurrence linked to the same series.
+                response = await client.delete(
+                    f"{SUPABASE_URL}/rest/v1/daily_tasks",
+                    headers=headers,
+                    params={
+                        "series_id": f"eq.{series_id}",
+                    },
+                )
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail="Failed to delete daily task",
+        )
+
+    deleted_rows = response.json()
+
+    if not deleted_rows:
+        raise HTTPException(
+            status_code=404,
+            detail="Daily task not found",
+        )
+
+    return Response(status_code=204)

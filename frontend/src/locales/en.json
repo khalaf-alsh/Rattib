@@ -4,8 +4,8 @@
   "studySchedule": "Study Schedule",
   "dailyPlanner": "Daily Planner",
   "account": "Account",
+  "toggleTheme": "Toggle theme",
   "addCourse": "Add Course",
-
   "days": {
     "sunday": "Sunday",
     "monday": "Monday",
@@ -124,15 +124,183 @@
     "login": "Ratteb | Login",
     "register": "Ratteb | Register",
     "forgotPassword": "Ratteb | Forgot Password",
-    "resetPassword": "Ratteb | Reset Password"
+    "resetPassword": "Ratteb | Reset Password",
+    "developer": "Ratteb | Developer"
   },
   "registerVerification": {
     "title": "Check your email",
-    "message": "Your account has been created. We sent a confirmation link to {{email}}. Verify your email, then return to sign in.",
+    "message": "Check your email to complete your registration. If you don't receive a message, verify the email address or try signing in if you already have an account.",
     "login": "Back to Login"
   },
-  "dailyPlannerComingSoon": {
-    "title": "Coming Soon",
-    "description": "The Daily Planner is currently under development."
+  "dailyTask": {
+    "saving": "Saving...",
+    "reminderTime": "Reminder Time",
+    "addTitle": "Add Task",
+    "addTask": "Add Task",
+    "taskName": "Task Name",
+    "taskNamePlaceholder": "Example: Study for the exam",
+    "date": "Date",
+    "startTime": "Start Time",
+    "endTime": "End Time",
+    "notes": "Notes",
+    "notesPlaceholder": "Additional notes...",
+    "reminder": "Reminder",
+    "repeat": "Repeat",
+    "repeatUntil": "Repeat until",
+    "selectRepeatEnd": "Select repeat end date",
+    "repeatLimit": "Tasks can repeat for up to 30 days from the task date.",
+    "multipleDates": "Task dates",
+    "selectMultipleDates": "Select dates",
+    "selectedDatesCount": "{{count}} additional dates selected",
+    "multipleDatesHelp": "The main task date is included automatically. You can select additional dates within 30 days.",
+    "confirmDates": "Confirm",
+    "cancelDates": "Cancel",
+    "deleteSeriesConfirmation": "This task is part of a recurring series. What would you like to delete?",
+    "deleteThisTask": "This task only",
+    "deleteEntireSeries": "Entire series",
+    "deleting": "Deleting...",
+    "editSeriesTitle": "Edit recurring task",
+    "editSeriesConfirmation": "Do you want to apply the changes to this task only or to the entire series? Series dates will remain unchanged.",
+    "editThisTask": "This task only",
+    "editEntireSeries": "Entire series",
+    "repeats": {
+      "none": "Doesn't repeat",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "customDates": "Multiple dates"
+    },
+    "reminders": {
+      "customTime": "Custom Time",
+      "none": "No reminder",
+      "atTime": "At task time",
+      "tenMinutes": "10 minutes before",
+      "fifteenMinutes": "15 minutes before",
+      "thirtyMinutes": "30 minutes before",
+      "oneHour": "1 hour before"
+    },
+    "errors": {
+      "customDatesRequired": "Select at least one additional date",
+      "reminderTimeRequired": "Please select a reminder time.",
+      "titleRequired": "Please enter a task name.",
+      "startTimeRequired": "Please select a start time first.",
+      "invalidEndTime": "End time must be after start time.",
+      "reminderMustBeFuture": "The reminder time must be in the future.",
+      "repeatUntilRequired": "Select a repeat end date",
+      "repeatUntilBeforeStart": "The repeat end date cannot be before the task date",
+      "repeatLimitExceeded": "Recurring tasks are limited to 30 days from the task date"
+    },
+    "selectTime": "Select time",
+    "editTitle": "Edit Task",
+    "deleteTitle": "Delete Task",
+    "deleteConfirmation": "Are you sure you want to delete “{{title}}”?"
+  },
+  "timeWheel": {
+    "confirm": "Confirm",
+    "clear": "No time",
+    "hour": "Hour",
+    "minute": "Minute",
+    "period": "Period"
+  },
+  "backToSchedule": "Back to Schedule",
+  "scheduleLoading": "Loading your schedule, this may take up to one minute...",
+  "scheduleLoadError": "Unable to load your schedule. Please try again.",
+  "retry": "Try again",
+  "planner": {
+    "emptyTitle": "No tasks for this day",
+    "emptyDescription": "Add a task to start planning your day.",
+    "tasks": "Today's Tasks",
+    "schedule": "Today's Schedule",
+    "lecture": "Lecture",
+    "edit": "Edit task: {{title}}",
+    "complete": "Complete task: {{title}}",
+    "uncomplete": "Mark task incomplete: {{title}}",
+    "chooseDate": "Choose date",
+    "previousWeek": "Previous week",
+    "nextWeek": "Next week",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "today": "Today"
+  },
+  "authErrors": {
+    "notVerified": "Please verify your email before signing in.",
+    "emailExists": "An account with this email already exists.",
+    "invalidCredentials": "Incorrect email or password.",
+    "rateLimit": "Too many attempts. Please try again later."
+  },
+  "deleteSchedule": {
+    "title": "Delete entire schedule",
+    "message": "All courses and meetings in your study schedule will be deleted. This action cannot be undone.",
+    "confirm": "Delete schedule",
+    "deleting": "Deleting schedule...",
+    "success": "Your entire study schedule has been deleted.",
+    "error": "Unable to finish deleting the schedule. Confirmed deletions have been removed; the remaining courses are still shown. You can try again."
+  },
+  "notifications": "Notifications",
+  "notificationsDescription": "Enable notifications to receive task reminders",
+  "notificationStatus": "Status",
+  "notificationEnabled": "Enabled",
+  "notificationDisabled": "Disabled",
+  "notificationBlocked": "Blocked",
+  "notificationUnsupported": "Not supported",
+  "enableNotifications": "Enable Notifications",
+  "enablingNotifications": "Enabling...",
+  "notificationsEnabledSuccess": "Notifications enabled successfully",
+  "notificationPermissionDenied": "Notification permission is blocked",
+  "notificationEnableFailed": "Unable to enable notifications",
+  "disableNotifications": "Disable Notifications",
+  "disablingNotifications": "Disabling...",
+  "notificationsDisabledSuccess": "Notifications disabled successfully",
+  "notificationDisableFailed": "Unable to disable notifications",
+  "backToPreviousPage": "Back to previous page",
+  "contactUs": "Contact Us",
+  "phone": "Phone",
+  "developerPage": "Developer",
+  "developerName": "Khalaf Alshammari",
+  "developerRole": "Software Engineer",
+  "developerLocation": "Saudi Arabia",
+  "developerAbout": "About the Developer",
+  "developerAboutText": "Software engineer and developer of Ratteb, focused on building practical and user-friendly software solutions.",
+  "linkedin": "LinkedIn",
+  "github": "GitHub",
+  "backToAccount": "Back to Account",
+  "notificationBlockedDescription": "Allow notifications in your browser settings, then try again",
+  "deleteAccount": {
+    "title": "Delete Account",
+    "description": "Permanently delete your account and all associated data",
+    "button": "Delete Account",
+    "message": "Your account and all associated schedules, tasks, notes, and reminders will be permanently deleted. This action cannot be undone.",
+    "confirm": "Delete Permanently",
+    "deleting": "Deleting account...",
+    "error": "Unable to delete your account. Please try again."
+  },
+  "passwordRules": {
+    "title": "Password must contain:",
+    "minLength": "At least 8 characters",
+    "uppercase": "At least one uppercase letter",
+    "lowercase": "At least one lowercase letter",
+    "number": "At least one number",
+    "special": "At least one special character such as @ or $",
+    "invalid": "Please meet all password requirements"
+  },
+  "legalLinks": {
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Use",
+    "contact": "Contact Us"
+  },
+  "termsAcceptance": {
+    "age": "I confirm that I am 18 years of age or older,",
+    "agree": "I agree to the",
+    "andRead": "and acknowledge the",
+    "required": "You must accept the Terms of Use and acknowledge the Privacy Policy to continue"
+  },
+  "legalAcceptance": {
+    "title": "Updated Terms",
+    "description": "Before continuing to use Ratteb, please review and accept the current Terms of Use and Privacy Policy.",
+    "continue": "Accept and Continue",
+    "error": "Unable to save your acceptance. Please try again."
+  },
+  "authControls": {
+    "changeLanguage": "Change language",
+    "changeTheme": "Change theme"
   }
 }

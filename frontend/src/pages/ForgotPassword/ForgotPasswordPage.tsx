@@ -1,31 +1,59 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+
 import { useAuth } from "../../context/AuthContext";
-import rattebIcon from "../../assets/ratteb-icon.png";
-import "./ForgotPasswordPage.css";
 import { usePageTitle } from "../../hooks/usePageTitle";
+
+import AuthPageControls from "../../components/auth/AuthPageControls";
+import AuthCaptcha from "../../components/auth/AuthCaptcha";
+
+import rattebIcon from "../../assets/ratteb-icon.png";
+
+import "./ForgotPasswordPage.css";
+
 function ForgotPasswordPage() {
   const { t } = useTranslation();
+
   const { resetPassword } = useAuth();
 
   const [email, setEmail] = useState("");
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
+
   usePageTitle("pageTitles.forgotPassword");
+
+  // Resets Turnstile after an unsuccessful password reset request
+  // because CAPTCHA tokens should only be submitted once.
+  const resetCaptcha = () => {
+    setCaptchaToken("");
+    setCaptchaResetKey((current) => current + 1);
+  };
+
+  // Sends the password reset request together with the verified
+  // CAPTCHA token through the authentication context.
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+
+    if (!captchaToken || submitting) {
+      return;
+    }
 
     setError("");
     setSuccess(false);
     setSubmitting(true);
 
-    const authError = await resetPassword(email.trim());
+    const authError = await resetPassword(email.trim(), captchaToken);
 
     setSubmitting(false);
 
     if (authError) {
+      resetCaptcha();
       setError(t("resetEmailFailed"));
       return;
     }
@@ -36,6 +64,8 @@ function ForgotPasswordPage() {
   return (
     <main className="auth-page">
       <div className="auth-card">
+        <AuthPageControls />
+
         <div className="auth-brand">
           <img src={rattebIcon} alt="" />
           <h1>{t("appName")}</h1>
@@ -75,12 +105,27 @@ function ForgotPasswordPage() {
                 />
               </div>
 
-              {error && <p className="auth-error">{error}</p>}
+              <AuthCaptcha
+                resetKey={captchaResetKey}
+                onVerify={(token) => {
+                  setCaptchaToken(token);
+                  setError("");
+                }}
+                onExpire={() => {
+                  setCaptchaToken("");
+                }}
+              />
+
+              {error && (
+                <p className="auth-error" role="alert">
+                  {error}
+                </p>
+              )}
 
               <button
                 type="submit"
                 className="auth-submit"
-                disabled={submitting}
+                disabled={submitting || !captchaToken}
               >
                 {submitting ? t("loading") : t("sendResetLink")}
               </button>

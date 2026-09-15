@@ -20,14 +20,18 @@ function DeleteScopeModal({
 }: DeleteScopeModalProps) {
   const { t } = useTranslation();
 
+  // A single meeting does not need a separate "delete this meeting" option
+  // because removing it would effectively remove the entire course.
   const hasMultipleMeetings = course.meetings.length > 1;
 
   return (
+    // Clicking the overlay closes the modal.
     <div className="delete-scope-overlay" onClick={onClose}>
       <div
         className="delete-scope-modal"
         role="dialog"
         aria-modal="true"
+        // Prevent clicks inside the modal from reaching the overlay.
         onClick={(event) => event.stopPropagation()}
       >
         <div className="delete-scope-header">
@@ -50,6 +54,7 @@ function DeleteScopeModal({
           <div className="delete-scope-options">
             <p className="delete-warning-text">{t("chooseDeleteType")}</p>
 
+            {/* Delete only the selected meeting while keeping the course. */}
             <button
               type="button"
               className="delete-scope-option"
@@ -63,6 +68,7 @@ function DeleteScopeModal({
               </div>
             </button>
 
+            {/* Delete the course together with all of its meetings. */}
             <button
               type="button"
               className="delete-scope-option danger"
@@ -85,6 +91,8 @@ function DeleteScopeModal({
             </button>
           </div>
         ) : (
+          // When the course has only one meeting, deleting that meeting
+          // means deleting the whole course.
           <div className="delete-confirmation">
             <p>{t("deleteCourseConfirmation")}</p>
 

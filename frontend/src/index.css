@@ -21,3 +21,8 @@ button,
 input {
   font: inherit;
 }
+
+@media (max-width: 700px) {
+  .course-modal-close, .task-modal-close, .delete-scope-close, .edit-scope-close, .time-wheel-close, .calendar-picker-arrow, .course-options-button, .course-menu-item { min-width: 44px; min-height: 44px; flex-shrink: 0; }
+  .calendar-picker-today { min-height: 44px; }
+}

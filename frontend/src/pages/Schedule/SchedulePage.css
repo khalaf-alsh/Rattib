@@ -47,28 +47,8 @@
   padding-top: 24px;
 }
 
-.daily-planner-coming-soon {
-  min-height: 60vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 24px;
-}
 
-.daily-planner-coming-soon h2 {
-  margin: 0 0 12px;
-  font-size: clamp(32px, 6vw, 56px);
-  font-weight: 700;
-  color: var(--text-primary);
-}
 
-.daily-planner-coming-soon p {
-  margin: 0;
-  font-size: 18px;
-  color: var(--text-secondary);
-}
 @media (max-width: 700px) {
   .schedule-page {
     min-width: 0;
@@ -88,4 +68,43 @@
 
     white-space: nowrap;
   }
+}
+
+.schedule-load-state { padding: 24px 16px; margin-bottom: 20px; border: 1px solid var(--border-color); border-radius: 12px; color: var(--text-secondary); text-align: center; }
+.schedule-load-state button { min-height: 44px; padding: 8px 16px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; }
+@media (max-width: 700px) { .schedule-page { padding: 10px 0; } }
+
+/* Let the day content use the space remaining below the tabs and controls. */
+.schedule-page--daily { min-height: 0; flex: 1; }
+.schedule-page--daily .schedule-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.schedule-page--daily .schedule-load-state { flex-shrink: 0; }
+.daily-planner-panel:not([hidden]) {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Constrain only Study Schedule to the space below the page tabs. */
+.schedule-page--study {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.schedule-page--study .schedule-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.schedule-page--study .schedule-load-state { flex-shrink: 0; }
+.study-schedule-panel:not([hidden]) {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }

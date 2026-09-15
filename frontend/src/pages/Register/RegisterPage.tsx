@@ -1,22 +1,40 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+
+import AuthFooter from "../../components/auth/AuthFooter";
+import PasswordRequirements from "../../components/auth/PasswordRequirements";
+import AuthPageControls from "../../components/auth/AuthPageControls";
+import AuthCaptcha from "../../components/auth/AuthCaptcha";
+
 import { useAuth } from "../../context/AuthContext";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { isPasswordValid } from "../../lib/passwordPolicy";
+
 import rattebIcon from "../../assets/ratteb-icon.png";
+
 import "./RegisterPage.css";
 
 function RegisterPage() {
   const { t } = useTranslation();
+
   const { user, signUp } = useAuth();
+
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
   const [registeredEmail, setRegisteredEmail] = useState("");
+
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
 
   usePageTitle("pageTitles.register");
 
@@ -24,30 +42,52 @@ function RegisterPage() {
     return <Navigate to="/schedule" replace />;
   }
 
+  // Resets the CAPTCHA after a failed registration attempt
+  // so the same Turnstile token cannot be submitted again.
+  const resetCaptcha = () => {
+    setCaptchaToken("");
+    setCaptchaResetKey((current) => current + 1);
+  };
+
+  // Validates all registration requirements before creating
+  // the Supabase account and sending the CAPTCHA token.
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
     setError("");
 
-    if (password !== confirmPassword) {
-      setError(t("passwordsDoNotMatch"));
+    // Account creation is blocked until the user explicitly confirms
+    // the age requirement and accepts the legal documents.
+    if (!acceptedTerms) {
+      setError("termsAcceptance.required");
       return;
     }
 
-    if (password.length < 6) {
-      setError(t("passwordTooShort"));
+    if (!isPasswordValid(password)) {
+      setError("passwordRules.invalid");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("passwordsDoNotMatch");
+      return;
+    }
+
+    if (!captchaToken || submitting) {
       return;
     }
 
     setSubmitting(true);
 
     const trimmedEmail = email.trim();
-    const authError = await signUp(trimmedEmail, password);
+
+    const authError = await signUp(trimmedEmail, password, captchaToken);
 
     setSubmitting(false);
 
     if (authError) {
-      setError(t("registrationFailed"));
+      resetCaptcha();
+      setError(authError);
       return;
     }
 
@@ -58,6 +98,8 @@ function RegisterPage() {
     return (
       <main className="auth-page">
         <div className="auth-card">
+          <AuthPageControls />
+
           <div className="auth-brand">
             <img src={rattebIcon} alt="" />
             <h1>{t("appName")}</h1>
@@ -80,6 +122,8 @@ function RegisterPage() {
           >
             {t("registerVerification.login")}
           </button>
+
+          <AuthFooter />
         </div>
       </main>
     );
@@ -88,6 +132,8 @@ function RegisterPage() {
   return (
     <main className="auth-page">
       <div className="auth-card">
+        <AuthPageControls />
+
         <div className="auth-brand">
           <img src={rattebIcon} alt="" />
           <h1>{t("appName")}</h1>
@@ -108,7 +154,10 @@ function RegisterPage() {
               value={email}
               autoComplete="email"
               required
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setError("");
+              }}
             />
           </div>
 
@@ -121,8 +170,14 @@ function RegisterPage() {
               value={password}
               autoComplete="new-password"
               required
-              onChange={(event) => setPassword(event.target.value)}
+              aria-describedby="password-requirements"
+              onChange={(event) => {
+                setPassword(event.target.value);
+                setError("");
+              }}
             />
+
+            <PasswordRequirements password={password} />
           </div>
 
           <div className="auth-field">
@@ -134,13 +189,59 @@ function RegisterPage() {
               value={confirmPassword}
               autoComplete="new-password"
               required
-              onChange={(event) => setConfirmPassword(event.target.value)}
+              onChange={(event) => {
+                setConfirmPassword(event.target.value);
+                setError("");
+              }}
             />
           </div>
 
-          {error && <p className="auth-error">{error}</p>}
+          <div className="terms-acceptance">
+            <label>
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(event) => {
+                  setAcceptedTerms(event.target.checked);
+                  setError("");
+                }}
+              />
 
-          <button type="submit" className="auth-submit" disabled={submitting}>
+              <span>
+                {t("termsAcceptance.age")} {t("termsAcceptance.agree")}{" "}
+                <Link to="/terms" target="_blank" rel="noreferrer">
+                  {t("legalLinks.terms")}
+                </Link>{" "}
+                {t("termsAcceptance.andRead")}{" "}
+                <Link to="/privacy" target="_blank" rel="noreferrer">
+                  {t("legalLinks.privacy")}
+                </Link>
+              </span>
+            </label>
+          </div>
+
+          <AuthCaptcha
+            resetKey={captchaResetKey}
+            onVerify={(token) => {
+              setCaptchaToken(token);
+              setError("");
+            }}
+            onExpire={() => {
+              setCaptchaToken("");
+            }}
+          />
+
+          {error && (
+            <p className="auth-error" role="alert">
+              {t(error)}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            className="auth-submit"
+            disabled={submitting || !captchaToken}
+          >
             {submitting ? t("loading") : t("createAccount")}
           </button>
         </form>
@@ -148,6 +249,8 @@ function RegisterPage() {
         <p className="auth-switch">
           {t("alreadyHaveAccount")} <Link to="/login">{t("login")}</Link>
         </p>
+
+        <AuthFooter />
       </div>
     </main>
   );
