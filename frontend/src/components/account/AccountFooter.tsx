@@ -46,6 +46,14 @@ function AccountFooter() {
           </Link>
         </div>
       </section>
+
+      <nav className="account-footer-legal">
+        <Link to="/privacy">{t("legalLinks.privacy")}</Link>
+
+        <span aria-hidden="true">•</span>
+
+        <Link to="/terms">{t("legalLinks.terms")}</Link>
+      </nav>
     </footer>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import LegalAcceptanceRequired from "./LegalAcceptanceRequired";
 
@@ -11,6 +12,8 @@ import rattebIcon from "../../assets/ratteb-icon.png";
 import "./ProtectedRoute.css";
 
 function ProtectedRoute() {
+  const { t } = useTranslation();
+
   const { user, loading } = useAuth();
 
   const [legalLoading, setLegalLoading] = useState(true);
@@ -62,13 +65,13 @@ function ProtectedRoute() {
         className="app-loading-screen"
         role="status"
         aria-live="polite"
-        aria-label="Loading"
+        aria-label={t("scheduleLoading")}
       >
         <div className="app-loading-spinner">
           <img src={rattebIcon} alt="" className="app-loading-logo" />
         </div>
 
-        <span className="app-loading-text">Loading</span>
+        <p className="app-loading-text">{t("scheduleLoading")}</p>
       </div>
     );
   }
