@@ -7,6 +7,8 @@ import {
   Mail,
   Trash2,
   UserRound,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -44,6 +46,10 @@ function AccountPage() {
   const { user, updateEmail, updatePassword, signOut } = useAuth();
 
   const [email, setEmail] = useState(user?.email ?? "");
+
+  const [showProfileEmail, setShowProfileEmail] = useState(false);
+
+  const [showChangeEmail, setShowChangeEmail] = useState(false);
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -302,9 +308,24 @@ function AccountPage() {
             <UserRound size={38} />
           </div>
 
-          <div>
+          <div className="profile-info">
             <h2>{t("profile")}</h2>
-            <p>{user?.email}</p>
+
+            <div className="profile-email-row">
+              <p className="profile-email" dir="ltr">
+                {showProfileEmail ? user?.email : "••••••••••••"}
+              </p>
+
+              <button
+                type="button"
+                className="profile-email-toggle"
+                onClick={() => setShowProfileEmail((current) => !current)}
+                aria-label={showProfileEmail ? t("hideEmail") : t("showEmail")}
+                title={showProfileEmail ? t("hideEmail") : t("showEmail")}
+              >
+                {showProfileEmail ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </div>
           </div>
         </section>
 
@@ -325,16 +346,30 @@ function AccountPage() {
               <div className="account-field">
                 <label htmlFor="account-email">{t("email")}</label>
 
-                <input
-                  id="account-email"
-                  type="email"
-                  value={email}
-                  autoComplete="email"
-                  onChange={(event) => {
-                    setEmail(event.target.value);
-                    setEmailError("");
-                  }}
-                />
+                <div className="account-email-input-wrapper">
+                  <input
+                    id="account-email"
+                    type={showChangeEmail ? "email" : "password"}
+                    value={email}
+                    autoComplete="email"
+                    onChange={(event) => {
+                      setEmail(event.target.value);
+                      setEmailError("");
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    className="account-email-toggle"
+                    onClick={() => setShowChangeEmail((current) => !current)}
+                    aria-label={
+                      showChangeEmail ? t("hideEmail") : t("showEmail")
+                    }
+                    title={showChangeEmail ? t("hideEmail") : t("showEmail")}
+                  >
+                    {showChangeEmail ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
 
                 {emailError && (
                   <span className="account-error">{emailError}</span>

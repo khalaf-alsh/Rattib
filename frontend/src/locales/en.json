@@ -76,6 +76,8 @@
   "login": "Log In",
   "createAccount": "Create Account",
   "email": "Email",
+  "showEmail": "Show email",
+  "hideEmail": "Hide email",
   "password": "Password",
   "confirmPassword": "Confirm Password",
   "loginDescription": "Log in to access your schedules",
